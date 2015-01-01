@@ -43,6 +43,7 @@ public:
 
     static FILE* userFriendlyDumpFile;
     static FILE* binaryDumpFile;
+    static FILE* opcodeListFile;
 
 private:
     static UserFiendlyLogStatus _userFiendlyLogStatus;
@@ -57,6 +58,7 @@ public:
     // basically logs the packets via other private functions
     static void DumpPacket(const char* userFriendlyDumpFileName,
                            const char* binaryDumpFileName,
+                           const char* opcodeListFileName,
                            PacketType packetType,
                            DWORD packetOpcode,
                            DWORD packetSize,
@@ -111,6 +113,21 @@ public:
                 return;
             }
         }
+
+        if (!opcodeListFile)
+        {
+            opcodeListFile = fopen(opcodeListFileName, "w"); // binary mode
+            if (!opcodeListFile)
+            {
+                printf("Cannot open file: %s, error code: %d - %s",
+                    opcodeListFileName, errno, strerror(errno));
+                return;
+            }
+        }
+
+        fprintf(opcodeListFile, "%s %d[%d]\n", (packetType == PacketType::PACKET_TYPE_C2S) ? "C2S" : "S2C", packetOpcode, packetSize);
+        FlushFileBuffers(opcodeListFile);
+
         // dumps the binary format of the packet
         DumpPacketBinary(binaryDumpFile,
                          packetType,

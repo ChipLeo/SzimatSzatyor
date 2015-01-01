@@ -101,6 +101,9 @@ bool recvHookGood = false;
 char logPath[MAX_PATH] = { 0 };
 // location of the binary packet dump file
 char binPath[MAX_PATH] = { 0 };
+// location of the opcode list file
+char opcodePath[MAX_PATH] = { 0 };
+
 
 /* static */ char PacketDump::enableUserFriendlyPath[MAX_PATH] = { 0 };
 /* static */ char
@@ -108,6 +111,7 @@ char binPath[MAX_PATH] = { 0 };
 
 /* static */ FILE* PacketDump::userFriendlyDumpFile = NULL;
 /* static */ FILE* PacketDump::binaryDumpFile = NULL;
+/* static */ FILE* PacketDump::opcodeListFile = NULL;
 
 /* static */ PacketDump::UserFiendlyLogStatus
              PacketDump::_userFiendlyLogStatus = USER_FRIENDLY_LOG_NOT_CHECKED;
@@ -149,6 +153,8 @@ BOOL APIENTRY DllMain(HINSTANCE instDLL, DWORD reason, LPVOID /* reserved */)
             fflush(PacketDump::binaryDumpFile);
             fclose(PacketDump::binaryDumpFile);
         }
+        fflush(PacketDump::opcodeListFile);
+        fclose(PacketDump::opcodeListFile);
         // deallocates the console
         ConsoleManager::Destroy();
     }
@@ -247,6 +253,8 @@ DWORD MainThreadControl(LPVOID /* param */)
     char fileNameUserFriendly[64];
     // the binary file, .bin
     char fileNameBinary[64];
+    // the opcode file, .opc
+    char fileNameOpcode[64];
 
     // fills the basic file name format
     _snprintf(fileName,
@@ -263,10 +271,12 @@ DWORD MainThreadControl(LPVOID /* param */)
     // fills the specific file names
     _snprintf(fileNameUserFriendly, 64, "%s.log", fileName);
     _snprintf(fileNameBinary, 64, "%s.bin", fileName);
+    _snprintf(fileNameOpcode, 64, "%s.opc", fileName);
 
     // some info
     printf("User friendly dump: %s\n", fileNameUserFriendly);
     printf("Binary dump:        %s\n\n", fileNameBinary);
+    printf("Opcode list:        %s\n\n", fileNameOpcode);
 
     // removes the DLL name from the path
     PathRemoveFileSpec(dllPath);
@@ -274,6 +284,7 @@ DWORD MainThreadControl(LPVOID /* param */)
     // simply appends the file names to the DLL's location
     _snprintf(logPath, MAX_PATH, "%s\\%s", dllPath, fileNameUserFriendly);
     _snprintf(binPath, MAX_PATH, "%s\\%s", dllPath, fileNameBinary);
+    _snprintf(opcodePath, MAX_PATH, "%s\\%s", dllPath, fileNameOpcode);
 
     // "calculates" the path of the file which enables
     // the "user friendly" log format
@@ -369,6 +380,7 @@ DWORD __fastcall SendHook(void* thisPTR,
     // dumps the packet
     PacketDump::DumpPacket(logPath,
                            binPath,
+                           opcodePath,
                            PacketDump::PACKET_TYPE_C2S,
                            packetOcode,
                            packetSize - packetOpcodeSize,
@@ -398,6 +410,8 @@ DWORD __fastcall SendHook(void* thisPTR,
     {
         printf("Send hook is working.\n");
         sendHookGood = true;
+        if (PacketDump::userFriendlyDumpFile)
+            fprintf(PacketDump::userFriendlyDumpFile, "Base addr: %X\n ", DWORD(GetModuleHandle(NULL)));
     }
 
     return returnValue;
@@ -423,6 +437,7 @@ DWORD __fastcall RecvHook_PreWOD(void* thisPTR,
     // packet dump
     PacketDump::DumpPacket(logPath,
                            binPath,
+                           opcodePath,
                            PacketDump::PACKET_TYPE_S2C,
                            packetOcode,
                            packetSize - packetOpcodeSize,
@@ -468,6 +483,7 @@ DWORD __fastcall RecvHook_WOD(void* thisPTR,
     // packet dump
     PacketDump::DumpPacket(logPath,
                            binPath,
+                           opcodePath,
                            PacketDump::PACKET_TYPE_S2C,
                            packetOcode,
                            packetSize - initialReadOffset,
