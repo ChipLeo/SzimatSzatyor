@@ -13,11 +13,31 @@
 #   You should have received a copy of the GNU General Public License
 #   along with SzimatSzatyor.  If not, see <http://www.gnu.org/licenses/>.
 
-build/*
-*__x64_*
-*__Win32_*
-src/bin
-*.suo
+[D|d]ebug/*
+[R|r]elease/*
+ipch/*
+
+*.exe
+*.dll
+*.lib
+*.obj
+*.pdb
+*.ilk
+*.idb
+*.ipch
+
 *.sdf
-ipch
 *.opensdf
+#*.sln
+*.suo
+#*.vcxproj*
+*.vcxproj.user
+*.vcxproj.filters
+
+*.tlog
+*.log
+
+*.pkt
+*.bin
+*.rar
+*.7z
