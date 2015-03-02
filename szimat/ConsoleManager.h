@@ -35,16 +35,21 @@ public:
         if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleManager::SignalHandler_SIGINT, TRUE))
             return false;
 
-        // just be sure there's a STDOUT
+        // just be sure there's a STDOUT and STDIN
         HANDLE standardOutputHandler = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (!standardOutputHandler || standardOutputHandler == INVALID_HANDLE_VALUE)
+            return false;
+
+        HANDLE standardInputHandler = GetStdHandle(STD_INPUT_HANDLE);
         if (!standardOutputHandler || standardOutputHandler == INVALID_HANDLE_VALUE)
             return false;
 
         // nice title again :)
         SetConsoleTitle("SzimatSzatyor, WoW injector sniffer");
 
-        // re-opens STDOUT handle as a console window output
+        // re-opens STDOUT and STDIN handle as a console window output
         freopen("CONOUT$", "w", stdout);
+        freopen("CONIN$", "r", stdin);
 
         // "sniffing loop" is only looping when this boolean is true
         // so just set this to false to stop it

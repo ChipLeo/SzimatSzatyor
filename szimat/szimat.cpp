@@ -15,6 +15,11 @@
 * along with SzimatSzatyor.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "szimat.h"
+#include "OpcodeMgr.h"
+#include "Injector.h"
+#include "CliRunnable.h"
+
+#include <thread>
 
 // entry point of the DLL
 BOOL APIENTRY DllMain(HINSTANCE instDLL, DWORD reason, LPVOID /* reserved */)
@@ -103,6 +108,8 @@ DWORD MainThreadControl(LPVOID /* param */)
     }
     printf("\nDLL path: %s\n", dllPath);
 
+    sOpcodeMgr->Initialize();
+
     // gets address of NetClient::Send2
     sendAddress = baseAddress + hookEntry.send_2;
     // hooks client's send function
@@ -128,9 +135,19 @@ DWORD MainThreadControl(LPVOID /* param */)
 
     printf("Recv is hooked.\n");
 
+    // Launch CliRunnable thread
+    std::thread* cliThread = new std::thread(CliThread);
+    sInjector->SetCliThread(cliThread);
+
     // loops until SIGINT (CTRL-C) occurs
-    while (!isSigIntOccured)
+    while (!isSigIntOccured && !Injector::IsStopped())
+    {
+        sInjector->ProcessCliCommands();
         Sleep(50); // sleeps 50 ms to be nice
+    }
+
+    sInjector->ShutdownCLIThread();
+    sOpcodeMgr->ShutDown();
 
     // unhooks functions
     HookManager::UnHook(sendAddress, defaultMachineCodeSend);
@@ -143,8 +160,75 @@ DWORD MainThreadControl(LPVOID /* param */)
     return 0;
 }
 
+void Injector::ShutdownCLIThread()
+{
+    if (m_cliThread != nullptr)
+    {
+        // First try to cancel any I/O in the CLI thread
+        if (!CancelSynchronousIo(m_cliThread->native_handle()))
+        {
+            // if CancelSynchronousIo() fails, print the error and try with old way
+            DWORD errorCode = GetLastError();
+            LPSTR errorBuffer;
+
+            DWORD formatReturnCode = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                                   nullptr, errorCode, 0, (LPTSTR)&errorBuffer, 0, nullptr);
+            if (!formatReturnCode)
+                errorBuffer = "Unknown error";
+
+            LocalFree(errorBuffer);
+
+            // send keyboard input to safely unblock the CLI thread
+            INPUT_RECORD b[4];
+            HANDLE hStdIn = GetStdHandle(STD_INPUT_HANDLE);
+            b[0].EventType = KEY_EVENT;
+            b[0].Event.KeyEvent.bKeyDown = TRUE;
+            b[0].Event.KeyEvent.uChar.AsciiChar = 'X';
+            b[0].Event.KeyEvent.wVirtualKeyCode = 'X';
+            b[0].Event.KeyEvent.wRepeatCount = 1;
+
+            b[1].EventType = KEY_EVENT;
+            b[1].Event.KeyEvent.bKeyDown = FALSE;
+            b[1].Event.KeyEvent.uChar.AsciiChar = 'X';
+            b[1].Event.KeyEvent.wVirtualKeyCode = 'X';
+            b[1].Event.KeyEvent.wRepeatCount = 1;
+
+            b[2].EventType = KEY_EVENT;
+            b[2].Event.KeyEvent.bKeyDown = TRUE;
+            b[2].Event.KeyEvent.dwControlKeyState = 0;
+            b[2].Event.KeyEvent.uChar.AsciiChar = '\r';
+            b[2].Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
+            b[2].Event.KeyEvent.wRepeatCount = 1;
+            b[2].Event.KeyEvent.wVirtualScanCode = 0x1c;
+
+            b[3].EventType = KEY_EVENT;
+            b[3].Event.KeyEvent.bKeyDown = FALSE;
+            b[3].Event.KeyEvent.dwControlKeyState = 0;
+            b[3].Event.KeyEvent.uChar.AsciiChar = '\r';
+            b[3].Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
+            b[3].Event.KeyEvent.wVirtualScanCode = 0x1c;
+            b[3].Event.KeyEvent.wRepeatCount = 1;
+            DWORD numb;
+            WriteConsoleInput(hStdIn, b, 4, &numb);
+        }
+
+        m_cliThread->join();
+        delete m_cliThread;
+    }
+}
+
 void DumpPacket(DWORD packetType, DWORD connectionId, WORD opcodeSize, CDataStore* dataStore)
 {
+    DWORD packetOpcode = opcodeSize == 4
+        ? *(DWORD*)dataStore->buffer
+        : *(WORD*)dataStore->buffer;
+
+    if (!sOpcodeMgr->ShowKnownOpcodes() && sOpcodeMgr->IsKnownOpcode(packetOpcode, packetType != CMSG))
+        return;
+
+    if (sOpcodeMgr->IsBlocked(packetOpcode, packetType != CMSG))
+        return;
+
     mtx.lock();
     // gets the time
     time_t rawTime;
@@ -197,10 +281,6 @@ void DumpPacket(DWORD packetType, DWORD connectionId, WORD opcodeSize, CDataStor
         fflush(fileDump);
     }
 
-    DWORD packetOpcode = opcodeSize == 4
-        ? *(DWORD*)dataStore->buffer
-        : *(WORD*)dataStore->buffer;
-
     BYTE* packetData     = dataStore->buffer + opcodeSize;
     DWORD packetDataSize = dataStore->size   - opcodeSize;
 
@@ -212,6 +292,8 @@ void DumpPacket(DWORD packetType, DWORD connectionId, WORD opcodeSize, CDataStor
     fwrite((DWORD*)&packetOpcode,           4, 1, fileDump);  // opcode
 
     fwrite(packetData, packetDataSize,         1, fileDump);  // data
+
+    printf("%s Size: %u\n", sOpcodeMgr->GetOpcodeNameForLogging(packetOpcode, packetType != CMSG).c_str(), packetDataSize);
 
 #if _DEBUG
     printf("%s Opcode: %-8u Size: %-8u\n", packetType == CMSG ? "CMSG" : "SMSG", packetOpcode, packetDataSize);
