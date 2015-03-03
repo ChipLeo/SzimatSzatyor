@@ -34,6 +34,13 @@ class OpcodeMgr
         }
         void BlockOpcode(unsigned int opcode, unsigned short type) { m_blockedOpcodes[type].insert(opcode); }
         void UnBlockOpcode(unsigned int opcode, unsigned short type) { m_blockedOpcodes[type].erase(opcode); }
+        void UnBlockAll(unsigned short type)
+        {
+            for (BlockedOpcodes::const_iterator itr = m_blockedOpcodes[type].begin(); itr != m_blockedOpcodes[type].end(); ++itr)
+                printf("Opcode %s will now be shown\n", GetOpcodeNameForLogging(*itr, type ? true : false).c_str());
+
+            m_blockedOpcodes[type].clear();
+        }
         bool ShowKnownOpcodes() { return m_showKnownOpcodes; }
         void ToggleKnownOpcodes() { m_showKnownOpcodes = !m_showKnownOpcodes; }
 

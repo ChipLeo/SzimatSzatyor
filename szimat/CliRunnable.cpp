@@ -66,6 +66,9 @@ void CliThread()
               ++numargs;
             }
 
+            for (unsigned short i = numargs; i < 255; ++i)
+                command[i] = "";
+
             if (!numargs)
                 command[0] = command_str;
 

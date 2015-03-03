@@ -23,7 +23,7 @@ struct CliCommandHolder
     CliCommandHolder(void* callbackArg, char* command[], int numargs, Print* zprint, CommandFinished* commandFinished)
         : m_callbackArg(callbackArg), m_print(zprint), m_commandFinished(commandFinished), m_numargs(numargs)
     {
-        for (int i = 0; i < numargs; ++i)
+        for (int i = 0; i < 255; ++i)
             m_command[i] = command[i];
     }
 

@@ -153,6 +153,8 @@ DWORD MainThreadControl(LPVOID /* param */)
     HookManager::UnHook(sendAddress, defaultMachineCodeSend);
     HookManager::UnHook(recvAddress, defaultMachineCodeRecv);
 
+    printf("Detached!\n");
+
     // shutdowns the sniffer
     // note: after that DLL's entry point will be called with
     // reason DLL_PROCESS_DETACH
