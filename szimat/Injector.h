@@ -8,13 +8,15 @@
 #include "Util.h"
 #include "LockedQueue.h"
 
+#define MAX_COMMAND_ARGS 255
+
 struct CliCommandHolder
 {
     typedef void Print(void*, const char*);
     typedef void CommandFinished();
 
     void* m_callbackArg;
-    char* m_command[255];
+    char* m_command[MAX_COMMAND_ARGS];
     Print* m_print;
     int m_numargs;
 
@@ -23,7 +25,7 @@ struct CliCommandHolder
     CliCommandHolder(void* callbackArg, char* command[], int numargs, Print* zprint, CommandFinished* commandFinished)
         : m_callbackArg(callbackArg), m_print(zprint), m_commandFinished(commandFinished), m_numargs(numargs)
     {
-        for (int i = 0; i < 255; ++i)
+        for (int i = 0; i < MAX_COMMAND_ARGS; ++i)
             m_command[i] = command[i];
     }
 
