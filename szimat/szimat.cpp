@@ -225,6 +225,9 @@ void DumpPacket(DWORD packetType, DWORD connectionId, WORD opcodeSize, CDataStor
         ? *(DWORD*)dataStore->buffer
         : *(WORD*)dataStore->buffer;
 
+    if (!sOpcodeMgr->IsExclusive(packetOpcode, packetType != CMSG))
+        return;
+
     if (!sOpcodeMgr->ShowKnownOpcodes() && sOpcodeMgr->IsKnownOpcode(packetOpcode, packetType != CMSG))
         return;
 

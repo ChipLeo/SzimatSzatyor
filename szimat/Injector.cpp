@@ -41,11 +41,7 @@ bool Injector::ParseCommand(char* command[], int numargs)
 
             int opcode = 0;
 
-            std::string param_str(param);
-            if (param_str.find("0x") != std::string::npos)
-                opcode = (int)strtol(param, NULL, 0);
-            else opcode = atoi(param);
-
+            opcode = GetOpcodeFromParam(param);
             if (!opcode)
                 return false;
 
@@ -61,7 +57,7 @@ bool Injector::ParseCommand(char* command[], int numargs)
             else
                 return false;
 
-            sOpcodeMgr->BlockOpcode(opcode, serverOpcode ? 1 : 0);
+            sOpcodeMgr->BlockOpcode(opcode, serverOpcode);
 
             printf("Opcode %s will no longer be shown\n", sOpcodeMgr->GetOpcodeNameForLogging(opcode, serverOpcode).c_str());
             return true;
@@ -92,15 +88,11 @@ bool Injector::ParseCommand(char* command[], int numargs)
                 else
                     return false;
 
-                sOpcodeMgr->UnBlockAll(serverOpcode ? 1 : 0);
+                sOpcodeMgr->UnBlockAll(serverOpcode);
                 return true;
             }
 
-            std::string param_str(param);
-            if (param_str.find("0x") != std::string::npos)
-                opcode = (int)strtol(param, NULL, 0);
-            else opcode = atoi(param);
-
+            opcode = GetOpcodeFromParam(param);
             if (!opcode)
                 return false;
 
@@ -116,7 +108,7 @@ bool Injector::ParseCommand(char* command[], int numargs)
             else
                 return false;
 
-            sOpcodeMgr->UnBlockOpcode(opcode, serverOpcode ? 1 : 0);
+            sOpcodeMgr->UnBlockOpcode(opcode, serverOpcode);
 
             printf("Opcode %s will now be shown\n", sOpcodeMgr->GetOpcodeNameForLogging(opcode, serverOpcode).c_str());
             return true;
@@ -127,21 +119,105 @@ bool Injector::ParseCommand(char* command[], int numargs)
             printf("Show known opcodes: %s\n", sOpcodeMgr->ShowKnownOpcodes() ? "ON": "OFF");
             return true;
         }
+        else if (strcmp(command[i], "exclusive") == 0)
+        {
+            param = command[++i];
+            if (param == "")
+                return false;
+
+            bool add, clear = false;
+            if (strcmp(param, "add") == 0)
+                add = true;
+            else if (strcmp(param, "del") == 0 || strcmp(param, "delete") == 0)
+                add = false;
+            else if (strcmp(param, "clear") == 0)
+                clear = true;
+            else
+                return false;
+
+            if (clear)
+            {
+                param = command[++i];
+                if (param == "")
+                {
+                    sOpcodeMgr->ClearExclusive(true);
+                    sOpcodeMgr->ClearExclusive(false);
+                    return true;
+                }
+
+                bool serverOpcode;
+                if (strcmp(param, "true") == 0)
+                    serverOpcode = true;
+                else if (strcmp(param, "false") == 0)
+                    serverOpcode = false;
+                else
+                    return false;
+
+                sOpcodeMgr->ClearExclusive(serverOpcode);
+                return true;
+            }
+
+            param = command[++i];
+            unsigned int opcode;
+            opcode = GetOpcodeFromParam(param);
+            if (!opcode)
+                return false;
+
+            param = command[++i];
+            if (param == "")
+                return false;
+
+            bool serverOpcode;
+            if (strcmp(param, "true") == 0)
+                serverOpcode = true;
+            else if (strcmp(param, "false") == 0)
+                serverOpcode = false;
+            else
+                return false;
+
+            printf("Opcode %s is %s exclusive\n", sOpcodeMgr->GetOpcodeNameForLogging(opcode, serverOpcode).c_str(), add ? "now" : "no longer");
+
+            if (add)
+                sOpcodeMgr->AddExclusiveOpcode(opcode, serverOpcode);
+            else sOpcodeMgr->DelExclusiveOpcode(opcode, serverOpcode);
+
+            return true;
+        }
         else if (strcmp(command[i], "help") == 0)
         {
-            printf("|---------------------------------------------------------------------------------------|\n");
-            printf("| COMMAND     | PARAMS                 | DESCRIPTION                                    |\n");
-            printf("|---------------------------------------------------------------------------------------|\n");
-            printf("| quit        |                        | unhook the injector                            |\n");
-            printf("| block       | #opcode true/false     | block #opcode type (true=server, false=client) |\n");
-            printf("| unblock     | #opcode/all true/false | unblock #opcode (or all) of type ^             |\n");
-            printf("| toggleknown |                        | toggle showing/sniffing known opcodes          |\n");
-            printf("| help        |                        | show commands                                  |\n");
-            printf("|---------------------------------------------------------------------------------------|\n");
+            printf("|-----------------------------------------------------------------------------------------------------|\n");
+            printf("| COMMAND     | PARAMS                               | DESCRIPTION                                    |\n");
+            printf("|-----------------------------------------------------------------------------------------------------|\n");
+            printf("| quit        |                                      | unhook the injector                            |\n");
+            printf("| block       | #opcode true/false                   | block #opcode type (true=server, false=client) |\n");
+            printf("| unblock     | #opcode/all true/false               | unblock #opcode (or all) of type ^             |\n");
+            printf("| toggleknown |                                      | toggle showing/sniffing known opcodes          |\n");
+            printf("| exclusive   | add/del/clear #opcode/all true/false | add/remove/clear exclusive opcodes of type     |\n");
+            printf("| help        |                                      | show commands                                  |\n");
+            printf("|-----------------------------------------------------------------------------------------------------|\n");
             return true;
         }
     }
 
     printf("Invalid Command use 'help' for list of commands\n");
     return true;
+}
+
+unsigned int Injector::GetOpcodeFromParam(char* param)
+{
+    if (param == "")
+        return 0;
+
+    long opcode;
+
+    std::string param_str(param);
+    if (param_str.find("0x") != std::string::npos)
+         opcode = strtol(param, NULL, 0);
+    else opcode = atol(param);
+
+    // 0x1FC9 current highest opcode 6.1.0 19702
+    if (opcode > 0x1FC9 || opcode < 0)
+        return 0;
+
+    return opcode;
 }

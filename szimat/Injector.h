@@ -58,6 +58,8 @@ class Injector
         Injector() { }
         ~Injector() { }
 
+        unsigned int GetOpcodeFromParam(char* param);
+
         LockedQueue<CliCommandHolder*> cliCmdQueue;
 
        static std::atomic<bool> m_stopEvent;
