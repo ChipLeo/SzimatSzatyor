@@ -1,6 +1,6 @@
 
-#ifndef _Injector_h__
-#define _Injector_h__
+#ifndef _Sniffer_h__
+#define _Sniffer_h__
 
 #include <atomic>
 #include <thread>
@@ -36,12 +36,12 @@ private:
     CliCommandHolder& operator=(CliCommandHolder const& right) = delete;
 };
 
-class Injector
+class Sniffer
 {
     public:
-        static Injector* instance()
+        static Sniffer* instance()
         {
-            static Injector instance;
+            static Sniffer instance;
             return &instance;
         }
 
@@ -55,8 +55,8 @@ class Injector
         void ShutdownCLIThread();
 
     private:
-        Injector() { }
-        ~Injector() { }
+        Sniffer() { }
+        ~Sniffer() { }
 
         unsigned int GetOpcodeFromParam(char* param);
 
@@ -66,6 +66,6 @@ class Injector
        std::thread* m_cliThread;
 };
 
-#define sInjector Injector::instance()
+#define sSniffer Sniffer::instance()
 
 #endif

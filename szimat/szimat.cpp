@@ -16,7 +16,7 @@
 */
 #include "szimat.h"
 #include "OpcodeMgr.h"
-#include "Injector.h"
+#include "Sniffer.h"
 #include "CliRunnable.h"
 
 #include <thread>
@@ -137,16 +137,16 @@ DWORD MainThreadControl(LPVOID /* param */)
 
     // Launch CliRunnable thread
     std::thread* cliThread = new std::thread(CliThread);
-    sInjector->SetCliThread(cliThread);
+    sSniffer->SetCliThread(cliThread);
 
     // loops until SIGINT (CTRL-C) occurs
-    while (!isSigIntOccured && !Injector::IsStopped())
+    while (!isSigIntOccured && !Sniffer::IsStopped())
     {
-        sInjector->ProcessCliCommands();
+        sSniffer->ProcessCliCommands();
         Sleep(50); // sleeps 50 ms to be nice
     }
 
-    sInjector->ShutdownCLIThread();
+    sSniffer->ShutdownCLIThread();
     sOpcodeMgr->ShutDown();
 
     // unhooks functions
@@ -162,7 +162,7 @@ DWORD MainThreadControl(LPVOID /* param */)
     return 0;
 }
 
-void Injector::ShutdownCLIThread()
+void Sniffer::ShutdownCLIThread()
 {
     if (m_cliThread != nullptr)
     {

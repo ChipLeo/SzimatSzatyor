@@ -1,6 +1,6 @@
 #include "CliRunnable.h"
 #include "Util.h"
-#include "Injector.h"
+#include "Sniffer.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -33,7 +33,7 @@ void CliThread()
     printf(">");
 
     ///- As long as the World is running (no World::m_stopEvent), get the command line and handle it
-    while (!Injector::IsStopped())
+    while (!Sniffer::IsStopped())
     {
         fflush(stdout);
 
@@ -73,11 +73,11 @@ void CliThread()
                 command[0] = command_str;
 
             fflush(stdout);
-            sInjector->QueueCliCommand(new CliCommandHolder(NULL, command, numargs, &utf8print, &commandFinished));
+            sSniffer->QueueCliCommand(new CliCommandHolder(NULL, command, numargs, &utf8print, &commandFinished));
         }
         else if (feof(stdin))
         {
-            Injector::Stop();
+            Sniffer::Stop();
         }
     }
 }

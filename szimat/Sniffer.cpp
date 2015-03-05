@@ -1,9 +1,9 @@
-#include "Injector.h"
+#include "Sniffer.h"
 #include "OpcodeMgr.h"
 
-std::atomic<bool> Injector::m_stopEvent(false);
+std::atomic<bool> Sniffer::m_stopEvent(false);
 
-void Injector::ProcessCliCommands()
+void Sniffer::ProcessCliCommands()
 {
     CliCommandHolder::Print* zprint = NULL;
     void* callbackArg = NULL;
@@ -22,14 +22,14 @@ void Injector::ProcessCliCommands()
     }
 }
 
-bool Injector::ParseCommand(char* command[], int numargs)
+bool Sniffer::ParseCommand(char* command[], int numargs)
 {
     char* param = NULL;
     for (int i = 0; i < numargs; ++i)
     {
         if (strcmp(command[i], "quit") == 0)
         {
-            Injector::Stop();
+            Sniffer::Stop();
             printf("Detaching...\n");
             return true;
         }
@@ -188,7 +188,7 @@ bool Injector::ParseCommand(char* command[], int numargs)
             printf("|-----------------------------------------------------------------------------------------------------|\n");
             printf("| COMMAND     | PARAMS                               | DESCRIPTION                                    |\n");
             printf("|-----------------------------------------------------------------------------------------------------|\n");
-            printf("| quit        |                                      | unhook the injector                            |\n");
+            printf("| quit        |                                      | unhook the Sniffer                            |\n");
             printf("| block       | #opcode true/false                   | block #opcode type (true=server, false=client) |\n");
             printf("| unblock     | #opcode/all true/false               | unblock #opcode (or all) of type ^             |\n");
             printf("| toggleknown |                                      | toggle showing/sniffing known opcodes          |\n");
@@ -203,7 +203,7 @@ bool Injector::ParseCommand(char* command[], int numargs)
     return true;
 }
 
-unsigned int Injector::GetOpcodeFromParam(char* param)
+unsigned int Sniffer::GetOpcodeFromParam(char* param)
 {
     if (param == "")
         return 0;
