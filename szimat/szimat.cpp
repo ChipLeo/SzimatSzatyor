@@ -117,7 +117,7 @@ DWORD MainThreadControl(LPVOID /* param */)
     printf("Send is hooked.\n");
 
     // gets address of NetClient::ProcessMessage
-    recvAddress = baseAddress + hookEntry.recive;
+    recvAddress = baseAddress + hookEntry.receive;
     // hooks client's recv function
 
     if (buildNumber < 8606)
