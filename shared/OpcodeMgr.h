@@ -55,7 +55,7 @@ class OpcodeMgr
         }
         bool IsExclusive(unsigned int opcode, unsigned short type)
         {
-            if (m_exclusiveOpcodes[type].empty())
+            if (m_exclusiveOpcodes[0].empty() && m_exclusiveOpcodes[1].empty())
                 return true;
 
             OpcodeSet::const_iterator itr = m_exclusiveOpcodes[type].find(opcode);
