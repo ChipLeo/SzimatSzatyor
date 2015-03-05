@@ -4,11 +4,32 @@
 
 #include <atomic>
 #include <thread>
+#include <string>
+#include <wtypes.h>
+#include <psapi.h>
+#include <Shlwapi.h>
+#include <cstdio>
+#include <io.h>
 
 #include "Util.h"
 #include "LockedQueue.h"
 
 #define MAX_COMMAND_ARGS 255
+
+#define CMSG 0x47534D43 // client to server, CMSG
+#define SMSG 0x47534D53 // server to client, SMSG
+
+#define PKT_VERSION 0x0301
+#define SNIFFER_ID  15
+
+typedef struct {
+    void* vTable;
+    BYTE* buffer;
+    DWORD base;
+    DWORD alloc;
+    DWORD size;
+    DWORD read;
+} CDataStore;
 
 struct CliCommandHolder
 {
@@ -36,6 +57,21 @@ private:
     CliCommandHolder& operator=(CliCommandHolder const& right) = delete;
 };
 
+struct PacketInfo
+{
+    PacketInfo() : packetType(0), connectionId(0), opcodeSize(0), dataStore(nullptr) { }
+    PacketInfo(DWORD PacketType, DWORD ConnectionId, WORD OpcodeSize, CDataStore* DataStore) :
+        packetType(PacketType), connectionId(ConnectionId), opcodeSize(OpcodeSize),
+        dataStore(DataStore)
+    {
+    }
+
+    DWORD packetType;
+    DWORD connectionId;
+    WORD opcodeSize;
+    CDataStore* dataStore;
+};
+
 class Sniffer
 {
     public:
@@ -54,16 +90,39 @@ class Sniffer
         void QueueCliCommand(CliCommandHolder* commandHolder) { cliCmdQueue.add(commandHolder); }
         void ShutdownCLIThread();
 
+        void SetSnifferInfo(std::string& DllPath, std::string& Locale, WORD BuildNumber)
+        {
+            dllPath = DllPath;
+            locale = Locale;
+            buildNumber = BuildNumber;
+            fileDump = 0;
+        }
+        void DumpPacket(PacketInfo const& info);
+        void CloseFileDump()
+        {
+            if (fileDump)
+                fclose(fileDump);
+        }
+
+        FILE* GetFileDump() const { return fileDump; }
+
     private:
         Sniffer() { }
         ~Sniffer() { }
+
+        std::string dllPath;
+        std::string locale;
+        WORD buildNumber;
 
         unsigned int GetOpcodeFromParam(char* param);
 
         LockedQueue<CliCommandHolder*> cliCmdQueue;
 
-       static std::atomic<bool> m_stopEvent;
-       std::thread* m_cliThread;
+        static std::atomic<bool> m_stopEvent;
+        std::thread* m_cliThread;
+
+        std::mutex dumpMutex;
+        FILE* fileDump;
 };
 
 #define sSniffer Sniffer::instance()

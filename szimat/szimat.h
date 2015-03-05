@@ -23,17 +23,10 @@
 #include "Shared.h"
 #include "HookManager.h"
 #include <mutex>
-
-#define PKT_VERSION 0x0301
-#define SNIFFER_ID  15
-
-#define CMSG 0x47534D43 // client to server, CMSG
-#define SMSG 0x47534D53 // server to client, SMSG
+#include "Sniffer.h"
 
 // static member initilization
 volatile bool* ConsoleManager::_sniffingLoopCondition = NULL;
-
-std::mutex mtx;
 
 // needed to correctly shutdown the sniffer
 HINSTANCE instanceDLL = NULL;
@@ -42,7 +35,6 @@ volatile bool isSigIntOccured = false;
 
 // global access to the build number
 WORD buildNumber = 0;
-char locale[5] = { 'x', 'x', 'X', 'X', '\0' };
 HookEntry hookEntry;
 
 // this function will be called when send called in the client
@@ -84,12 +76,9 @@ BYTE defaultMachineCodeRecv[JMP_INSTRUCTION_SIZE] = { 0 };
 
 // these are false if "hook functions" don't called yet
 // and they are true if already called at least once
-bool sendHookGood = false;
-bool recvHookGood = false;
+bool sendInitialized = false;
+bool recvInitialized = false;
 
 // basically this method controls what the sniffer should do
 // pretty much like a "main method"
 DWORD MainThreadControl(LPVOID /* param */);
-
-char dllPath[MAX_PATH] = { 0 };
-FILE* fileDump = 0;

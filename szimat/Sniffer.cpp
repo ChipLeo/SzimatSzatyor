@@ -221,3 +221,89 @@ unsigned int Sniffer::GetOpcodeFromParam(char* param)
 
     return opcode;
 }
+
+void Sniffer::DumpPacket(PacketInfo const& info)
+{
+    DWORD packetOpcode = info.opcodeSize == 4
+        ? *(DWORD*)info.dataStore->buffer
+        : *(WORD*)info.dataStore->buffer;
+
+    if (!sOpcodeMgr->IsExclusive(packetOpcode, info.packetType != CMSG))
+        return;
+
+    if (!sOpcodeMgr->ShowKnownOpcodes() && sOpcodeMgr->IsKnownOpcode(packetOpcode, info.packetType != CMSG))
+        return;
+
+    if (sOpcodeMgr->IsBlocked(packetOpcode, info.packetType != CMSG))
+        return;
+
+    dumpMutex.lock();
+    // gets the time
+    time_t rawTime;
+    time(&rawTime);
+
+    DWORD tickCount = GetTickCount();
+
+    DWORD optionalHeaderLength = 0;
+
+    if (!fileDump)
+    {
+        tm* date = localtime(&rawTime);
+        // basic file name format:
+        char fileName[MAX_PATH];
+        // removes the DLL name from the path
+        PathRemoveFileSpec(const_cast<char *>(dllPath.c_str()));
+        // fills the basic file name format
+        _snprintf(fileName, MAX_PATH,
+            "wowsniff_%s_%u_%d-%02d-%02d_%02d-%02d-%02d.pkt",
+            locale.c_str(), buildNumber,
+            date->tm_year + 1900,
+            date->tm_mon + 1,
+            date->tm_mday,
+            date->tm_hour,
+            date->tm_min,
+            date->tm_sec);
+
+        // some info
+        printf("Sniff dump: %s\n\n", fileName);
+
+        char fullFileName[MAX_PATH];
+        _snprintf(fullFileName, MAX_PATH, "%s\\%s", dllPath.c_str(), fileName);
+
+        WORD pkt_version    = PKT_VERSION;
+        BYTE sniffer_id     = SNIFFER_ID;
+        BYTE sessionKey[40] = { 0 };
+
+        fileDump = fopen(fullFileName, "wb");
+        // PKT 3.1 header
+        fwrite("PKT",                           3, 1, fileDump);  // magic
+        fwrite((WORD*)&pkt_version,             2, 1, fileDump);  // major.minor version
+        fwrite((BYTE*)&sniffer_id,              1, 1, fileDump);  // sniffer id
+        fwrite((DWORD*)&buildNumber,            4, 1, fileDump);  // client build
+        fwrite(locale.c_str(),                  4, 1, fileDump);  // client lang
+        fwrite(sessionKey,                     40, 1, fileDump);  // session key
+        fwrite((DWORD*)&rawTime,                4, 1, fileDump);  // started time
+        fwrite((DWORD*)&tickCount,              4, 1, fileDump);  // started tick's
+        fwrite((DWORD*)&optionalHeaderLength,   4, 1, fileDump);  // opional header length
+
+        fflush(fileDump);
+    }
+
+    BYTE* packetData     = info.dataStore->buffer + info.opcodeSize;
+    DWORD packetDataSize = info.dataStore->size   - info.opcodeSize;
+
+    fwrite((DWORD*)&info.packetType,            4, 1, fileDump);  // direction of the packet
+    fwrite((DWORD*)&info.connectionId,          4, 1, fileDump);  // connection id
+    fwrite((DWORD*)&tickCount,                  4, 1, fileDump);  // timestamp of the packet
+    fwrite((DWORD*)&optionalHeaderLength,       4, 1, fileDump);  // connection id
+    fwrite((DWORD*)&info.dataStore->size,       4, 1, fileDump);  // size of the packet + opcode lenght
+    fwrite((DWORD*)&packetOpcode,               4, 1, fileDump);  // opcode
+
+    fwrite(packetData, packetDataSize,          1, fileDump);  // data
+
+    printf("%s Size: %u\n", sOpcodeMgr->GetOpcodeNameForLogging(packetOpcode, info.packetType != CMSG).c_str(), packetDataSize);
+
+    fflush(fileDump);
+
+    dumpMutex.unlock();
+}

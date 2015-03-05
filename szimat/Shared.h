@@ -24,15 +24,6 @@
 
 #define WOW_MOP_16135 16135
 
-typedef struct {
-    void* vTable;
-    BYTE* buffer;
-    DWORD base;
-    DWORD alloc;
-    DWORD size;
-    DWORD read;
-} CDataStore;
-
 // hook entry structure
 // stores the offsets which are will be hooked
 // every different client version should has different offsets

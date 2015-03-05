@@ -40,8 +40,7 @@ BOOL APIENTRY DllMain(HINSTANCE instDLL, DWORD reason, LPVOID /* reserved */)
     else if (reason == DLL_PROCESS_DETACH)
     {
         // close the dump file
-        if (fileDump)
-            fclose(fileDump);
+        sSniffer->CloseFileDump();
 
         // deallocates the console
         ConsoleManager::Destroy();
@@ -89,15 +88,23 @@ DWORD MainThreadControl(LPVOID /* param */)
     DWORD baseAddress = (DWORD)GetModuleHandle(NULL);
 
     DWORD localeAddress = hookEntry.locale;
-    // locale stored in reversed string (enGB as BGne...)
+    std::string locale;
+
     if (localeAddress)
     {
         for (int i = 3; i >= 0; --i)
-            locale[i] = *(char*)(baseAddress + localeAddress++);
-        printf("Detected client locale: %s\n", locale);
+            locale += *(char*)(baseAddress + (localeAddress + i));
+
+        printf("Detected client locale: %s\n", locale.c_str());
+    }
+    else
+    {
+        printf("Locale NOT detected (incorrect locale offset?)");
+        locale = "enUnk";
     }
 
     // gets where is the DLL which injected into the client
+    char dllPath[MAX_PATH] = { 0 };
     DWORD dllPathSize = GetModuleFileName((HMODULE)instanceDLL, dllPath, MAX_PATH);
     if (!dllPathSize)
     {
@@ -109,6 +116,7 @@ DWORD MainThreadControl(LPVOID /* param */)
     printf("\nDLL path: %s\n", dllPath);
 
     sOpcodeMgr->Initialize();
+    sSniffer->SetSnifferInfo(std::string(dllPath), locale, buildNumber);
 
     // gets address of NetClient::Send2
     sendAddress = baseAddress + hookEntry.send_2;
@@ -121,17 +129,11 @@ DWORD MainThreadControl(LPVOID /* param */)
     // hooks client's recv function
 
     if (buildNumber < 8606)
-    {
         HookManager::Hook(recvAddress, (DWORD)RecvHook3, machineCodeHookRecv, defaultMachineCodeRecv);
-    }
     else if (buildNumber < 19000)
-    {
         HookManager::Hook(recvAddress, (DWORD)RecvHook4, machineCodeHookRecv, defaultMachineCodeRecv);
-    }
     else
-    {
         HookManager::Hook(recvAddress, (DWORD)RecvHook5, machineCodeHookRecv, defaultMachineCodeRecv);
-    }
 
     printf("Recv is hooked.\n");
 
@@ -219,100 +221,10 @@ void Sniffer::ShutdownCLIThread()
     }
 }
 
-void DumpPacket(DWORD packetType, DWORD connectionId, WORD opcodeSize, CDataStore* dataStore)
-{
-    DWORD packetOpcode = opcodeSize == 4
-        ? *(DWORD*)dataStore->buffer
-        : *(WORD*)dataStore->buffer;
-
-    if (!sOpcodeMgr->IsExclusive(packetOpcode, packetType != CMSG))
-        return;
-
-    if (!sOpcodeMgr->ShowKnownOpcodes() && sOpcodeMgr->IsKnownOpcode(packetOpcode, packetType != CMSG))
-        return;
-
-    if (sOpcodeMgr->IsBlocked(packetOpcode, packetType != CMSG))
-        return;
-
-    mtx.lock();
-    // gets the time
-    time_t rawTime;
-    time(&rawTime);
-
-    DWORD tickCount = GetTickCount();
-
-    DWORD optionalHeaderLength = 0;
-
-    if (!fileDump)
-    {
-        tm* date = localtime(&rawTime);
-        // basic file name format:
-        char fileName[MAX_PATH];
-        // removes the DLL name from the path
-        PathRemoveFileSpec(dllPath);
-        // fills the basic file name format
-        _snprintf(fileName, MAX_PATH,
-            "wowsniff_%s_%u_%d-%02d-%02d_%02d-%02d-%02d.pkt",
-            locale, buildNumber,
-            date->tm_year + 1900,
-            date->tm_mon + 1,
-            date->tm_mday,
-            date->tm_hour,
-            date->tm_min,
-            date->tm_sec);
-
-        // some info
-        printf("Sniff dump: %s\n\n", fileName);
-
-        char fullFileName[MAX_PATH];
-        _snprintf(fullFileName, MAX_PATH, "%s\\%s", dllPath, fileName);
-
-        WORD pkt_version    = PKT_VERSION;
-        BYTE sniffer_id     = SNIFFER_ID;
-        BYTE sessionKey[40] = { 0 };
-
-        fileDump = fopen(fullFileName, "wb");
-        // PKT 3.1 header
-        fwrite("PKT",                           3, 1, fileDump);  // magic
-        fwrite((WORD*)&pkt_version,             2, 1, fileDump);  // major.minor version
-        fwrite((BYTE*)&sniffer_id,              1, 1, fileDump);  // sniffer id
-        fwrite((DWORD*)&buildNumber,            4, 1, fileDump);  // client build
-        fwrite(locale,                          4, 1, fileDump);  // client lang
-        fwrite(sessionKey,                     40, 1, fileDump);  // session key
-        fwrite((DWORD*)&rawTime,                4, 1, fileDump);  // started time
-        fwrite((DWORD*)&tickCount,              4, 1, fileDump);  // started tick's
-        fwrite((DWORD*)&optionalHeaderLength,   4, 1, fileDump);  // opional header length
-
-        fflush(fileDump);
-    }
-
-    BYTE* packetData     = dataStore->buffer + opcodeSize;
-    DWORD packetDataSize = dataStore->size   - opcodeSize;
-
-    fwrite((DWORD*)&packetType,             4, 1, fileDump);  // direction of the packet
-    fwrite((DWORD*)&connectionId,           4, 1, fileDump);  // connection id
-    fwrite((DWORD*)&tickCount,              4, 1, fileDump);  // timestamp of the packet
-    fwrite((DWORD*)&optionalHeaderLength,   4, 1, fileDump);  // connection id
-    fwrite((DWORD*)&dataStore->size,        4, 1, fileDump);  // size of the packet + opcode lenght
-    fwrite((DWORD*)&packetOpcode,           4, 1, fileDump);  // opcode
-
-    fwrite(packetData, packetDataSize,         1, fileDump);  // data
-
-    printf("%s Size: %u\n", sOpcodeMgr->GetOpcodeNameForLogging(packetOpcode, packetType != CMSG).c_str(), packetDataSize);
-
-#if _DEBUG
-    printf("%s Opcode: %-8u Size: %-8u\n", packetType == CMSG ? "CMSG" : "SMSG", packetOpcode, packetDataSize);
-#endif
-
-    fflush(fileDump);
-
-    mtx.unlock();
-}
-
 DWORD __fastcall SendHook(void* thisPTR, void* dummy , CDataStore* dataStore, void* param2)
 {
     // dumps the packet
-    DumpPacket(CMSG, (DWORD)param2, 4, dataStore);
+    sSniffer->DumpPacket(PacketInfo(CMSG, (DWORD)param2, 4, dataStore));
 
     // unhooks the send function
     HookManager::UnHook(sendAddress, defaultMachineCodeSend);
@@ -324,10 +236,10 @@ DWORD __fastcall SendHook(void* thisPTR, void* dummy , CDataStore* dataStore, vo
     // hooks again to catch the next outgoing packets also
     HookManager::ReHook(sendAddress, machineCodeHookSend);
 
-    if (!sendHookGood)
+    if (!sendInitialized)
     {
         printf("Send hook is working.\n");
-        sendHookGood = true;
+        sendInitialized = true;
     }
 
     return 0;
@@ -338,7 +250,7 @@ DWORD __fastcall SendHook(void* thisPTR, void* dummy , CDataStore* dataStore, vo
 DWORD __fastcall RecvHook3(void* thisPTR, void* dummy, void* param1, CDataStore* dataStore)
 {
     // packet dump
-    DumpPacket(SMSG, 0, 2, dataStore);
+    sSniffer->DumpPacket(PacketInfo(SMSG, 0, 2, dataStore));
 
     // unhooks the recv function
     HookManager::UnHook(recvAddress, defaultMachineCodeRecv);
@@ -349,10 +261,10 @@ DWORD __fastcall RecvHook3(void* thisPTR, void* dummy, void* param1, CDataStore*
     // hooks again to catch the next incoming packets also
     HookManager::ReHook(recvAddress, machineCodeHookRecv);
 
-    if (!recvHookGood)
+    if (!recvInitialized)
     {
         printf("Recv hook3 is working.\n");
-        recvHookGood = true;
+        recvInitialized = true;
     }
 
     return returnValue;
@@ -362,7 +274,7 @@ DWORD __fastcall RecvHook4(void* thisPTR, void* dummy, void* param1, CDataStore*
 {
     WORD opcodeSize = buildNumber <= WOW_MOP_16135 ? 2 : 4;
     // packet dump
-    DumpPacket(SMSG, (DWORD)param3, opcodeSize, dataStore);
+    sSniffer->DumpPacket(PacketInfo(SMSG, (DWORD)param3, opcodeSize, dataStore));
 
     // unhooks the recv function
     HookManager::UnHook(recvAddress, defaultMachineCodeRecv);
@@ -373,10 +285,10 @@ DWORD __fastcall RecvHook4(void* thisPTR, void* dummy, void* param1, CDataStore*
     // hooks again to catch the next incoming packets also
     HookManager::ReHook(recvAddress, machineCodeHookRecv);
 
-    if (!recvHookGood)
+    if (!recvInitialized)
     {
         printf("Recv hook4 is working.\n");
-        recvHookGood = true;
+        recvInitialized = true;
     }
 
     return returnValue;
@@ -385,7 +297,7 @@ DWORD __fastcall RecvHook4(void* thisPTR, void* dummy, void* param1, CDataStore*
 DWORD __fastcall RecvHook5(void* thisPTR, void* dummy, void* param1, void* param2, CDataStore* dataStore, void* param4)
 {
     // packet dump
-    DumpPacket(SMSG, (DWORD)param4, 4, dataStore);
+    sSniffer->DumpPacket(PacketInfo(SMSG, (DWORD)param4, 4, dataStore));
 
     // unhooks the recv function
     HookManager::UnHook(recvAddress, defaultMachineCodeRecv);
@@ -396,10 +308,10 @@ DWORD __fastcall RecvHook5(void* thisPTR, void* dummy, void* param1, void* param
     // hooks again to catch the next incoming packets also
     HookManager::ReHook(recvAddress, machineCodeHookRecv);
 
-    if (!recvHookGood)
+    if (!recvInitialized)
     {
         printf("Recv hook5 is working.\n");
-        recvHookGood = true;
+        recvInitialized = true;
     }
 
     return returnValue;
