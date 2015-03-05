@@ -99,7 +99,7 @@ DWORD MainThreadControl(LPVOID /* param */)
     }
     else
     {
-        printf("Locale NOT detected (incorrect locale offset?)");
+        printf("Locale NOT detected (incorrect locale offset?)\n");
         locale = "enUnk";
     }
 
