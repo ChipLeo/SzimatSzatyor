@@ -105,6 +105,7 @@ class Sniffer
         }
 
         FILE* GetFileDump() const { return fileDump; }
+        const std::string& GetDLLPath() { return dllPath; }
 
     private:
         Sniffer() { }

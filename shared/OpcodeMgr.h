@@ -7,8 +7,56 @@
 #include <ostream>
 #include <sstream>
 #include <set>
+#include <Windows.h>
+#include <unordered_map>
 
-#include "Opcodes.h"
+struct OpcodeHandler
+{
+    OpcodeHandler() {}
+
+    OpcodeHandler(unsigned int opcodeNumber, const std::string& _name)
+        : OpcodeNumber(opcodeNumber), Name(_name) {}
+
+    std::string Name;
+    unsigned int OpcodeNumber;
+};
+
+class OpcodeTable
+{
+public:
+    OpcodeTable() { }
+
+    ~OpcodeTable()
+    {
+        while (!_internalTable.empty())
+        {
+            Opcodes::iterator opcode = _internalTable.begin();
+            delete opcode->second;
+            _internalTable.erase(opcode);
+        }
+    }
+
+    void CreateOpcodeHandler(unsigned int opcode, const std::string& name) { _internalTable[opcode] = new OpcodeHandler(opcode, name); }
+    OpcodeHandler* const GetOpcodeHandler(unsigned int opcode) const
+    {
+        Opcodes::const_iterator itr = _internalTable.find(opcode);
+        if (itr != _internalTable.end())
+            return itr->second;
+
+        return nullptr;
+    }
+
+    size_t size() { return _internalTable.size(); }
+
+private:
+
+    // Prevent copying this structure
+    OpcodeTable(OpcodeTable const&);
+    OpcodeTable& operator=(OpcodeTable const&);
+
+    typedef std::unordered_map<unsigned int, OpcodeHandler*> Opcodes;
+    Opcodes _internalTable;
+};
 
 class OpcodeMgr
 {
@@ -21,6 +69,8 @@ class OpcodeMgr
 
         void Initialize();
         void ShutDown();
+        void ValidateAndSetOpcode(const std::string& name, unsigned int opcodeNumber);
+        void LoadOpcodeFile(const HINSTANCE moduleHandle);
 
         bool IsKnownOpcode(unsigned int opcode, bool isServerOpcode);
         bool IsBlocked(unsigned int opcode, bool serverOpcode)
@@ -67,12 +117,17 @@ class OpcodeMgr
 
         std::string GetOpcodeNameForLogging(unsigned int opcode, bool isServerOpcode);
 
+        unsigned int GetNumCliOpcodes() { return clientOpcodeTable->size(); }
+        unsigned int GetNumServerOpcodes() { return serverOpcodeTable->size(); }
+        unsigned int GetNumMiscOpcodes() { return miscOpcodeTable->size(); }
+
     private:
         OpcodeMgr() { }
         ~OpcodeMgr() { }
 
         OpcodeTable* serverOpcodeTable;
         OpcodeTable* clientOpcodeTable;
+        OpcodeTable* miscOpcodeTable;
 
         typedef std::set<unsigned int> OpcodeSet;
         OpcodeSet m_blockedOpcodes[2];

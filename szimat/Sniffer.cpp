@@ -36,7 +36,7 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
         else if (strcmp(command[i], "block") == 0)
         {
             param = command[++i];
-            if (param == "")
+            if (!param)
                 return false;
 
             int opcode = 0;
@@ -46,7 +46,7 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
                 return false;
 
             param = command[++i];
-            if (param == "")
+            if (!param)
                 return false;
 
             bool serverOpcode;
@@ -65,7 +65,7 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
         else if (strcmp(command[i], "unblock") == 0)
         {
             param = command[++i];
-            if (param == "")
+            if (!param)
                 return false;
 
             int opcode = 0;
@@ -73,7 +73,7 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
             if (strcmp(param, "all") == 0)
             {
                 param = command[++i];
-                if (param == "")
+                if (!param)
                 {
                     sOpcodeMgr->UnBlockAll(0);
                     sOpcodeMgr->UnBlockAll(1);
@@ -97,7 +97,7 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
                 return false;
 
             param = command[++i];
-            if (param == "")
+            if (!param)
                 return false;
 
             bool serverOpcode;
@@ -122,7 +122,7 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
         else if (strcmp(command[i], "exclusive") == 0)
         {
             param = command[++i];
-            if (param == "")
+            if (!param)
                 return false;
 
             bool add, clear = false;
@@ -138,7 +138,7 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
             if (clear)
             {
                 param = command[++i];
-                if (param == "")
+                if (!param)
                 {
                     sOpcodeMgr->ClearExclusive(true);
                     sOpcodeMgr->ClearExclusive(false);
@@ -164,7 +164,7 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
                 return false;
 
             param = command[++i];
-            if (param == "")
+            if (!param)
                 return false;
 
             bool serverOpcode;
@@ -188,24 +188,24 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
             printf("|-----------------------------------------------------------------------------------------------------|\n");
             printf("| COMMAND     | PARAMS                               | DESCRIPTION                                    |\n");
             printf("|-----------------------------------------------------------------------------------------------------|\n");
-            printf("| quit        |                                      | unhook the Sniffer                            |\n");
-            printf("| block       | #opcode true/false                   | block #opcode type (true=server, false=client) |\n");
-            printf("| unblock     | #opcode/all true/false               | unblock #opcode (or all) of type ^             |\n");
-            printf("| toggleknown |                                      | toggle showing/sniffing known opcodes          |\n");
-            printf("| exclusive   | add/del/clear #opcode/all true/false | add/remove/clear exclusive opcodes of type     |\n");
-            printf("| help        |                                      | show commands                                  |\n");
+            printf("| quit        |                                      | Unhook the sniffer                             |\n");
+            printf("| block       | #Opcode true/false                   | Block #opcode type (true=server, false=client) |\n");
+            printf("| unblock     | #Opcode/all true/false               | Unblock #opcode (or all) of type ^             |\n");
+            printf("| toggleknown |                                      | Toggle showing/sniffing known opcodes          |\n");
+            printf("| exclusive   | Add/del/clear #opcode/all true/false | Add/remove/clear exclusive opcodes of type     |\n");
+            printf("| help        |                                      | Show commands                                  |\n");
             printf("|-----------------------------------------------------------------------------------------------------|\n");
             return true;
         }
     }
 
-    printf("Invalid Command use 'help' for list of commands\n");
+    printf("Invalid command. Type 'help' for list of commands\n");
     return true;
 }
 
 unsigned int Sniffer::GetOpcodeFromParam(char* param)
 {
-    if (param == "")
+    if (!param)
         return 0;
 
     long opcode;

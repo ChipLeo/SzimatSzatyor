@@ -1,12 +1,19 @@
 #include "OpcodeMgr.h"
+#include <wtypes.h>
+#include <psapi.h>
+#include <Shlwapi.h>
+#include <cstdio>
+#include <io.h>
+#include <iostream>
+#include <fstream>
+#include <algorithm>
+#include <regex>
 
 void OpcodeMgr::Initialize()
 {
     serverOpcodeTable = new OpcodeTable();
-    serverOpcodeTable->InitializeServerTable();
-
     clientOpcodeTable = new OpcodeTable();
-    clientOpcodeTable->InitializeClientTable();
+    miscOpcodeTable = new OpcodeTable();
 
     m_showKnownOpcodes = true;
 }
@@ -15,6 +22,7 @@ void OpcodeMgr::ShutDown()
 {
     delete serverOpcodeTable;
     delete clientOpcodeTable;
+    delete miscOpcodeTable;
 }
 
 bool OpcodeMgr::IsKnownOpcode(unsigned int opcode, bool isServerOpcode)
@@ -44,4 +52,88 @@ std::string OpcodeMgr::GetOpcodeNameForLogging(unsigned int opcode, bool isServe
 
     ss << " 0x" << std::hex << std::uppercase << opcode << std::nouppercase << " (" << std::dec << opcode << ")]";
     return ss.str();
+}
+
+void OpcodeMgr::ValidateAndSetOpcode(const std::string& name, unsigned int opcodeNumber)
+{
+    if (opcodeNumber == 0xBADD || opcodeNumber == 0x0000)
+        return;
+
+    OpcodeTable* opcodeTable;
+    if (name.find("CMSG")  != std::string::npos)
+        opcodeTable = clientOpcodeTable;
+    else if (name.find("SMSG")  != std::string::npos)
+        opcodeTable = serverOpcodeTable;
+    else opcodeTable = miscOpcodeTable;
+
+    if (OpcodeHandler* handler = opcodeTable->GetOpcodeHandler(opcodeNumber))
+    {
+        printf("Tried to override handler of %s with %s (opcode 0x%04x)\n", handler->Name.c_str(), name.c_str(), opcodeNumber);
+        return;
+    }
+
+    opcodeTable->CreateOpcodeHandler(opcodeNumber, name);
+}
+
+void OpcodeMgr::LoadOpcodeFile(const HINSTANCE moduleHandle)
+{
+    char dllPath[MAX_PATH];
+    char filePath[MAX_PATH];
+    std::ifstream opcodeFile;
+
+    GetModuleFileNameA((HMODULE)moduleHandle, dllPath, MAX_PATH);
+    // removes the DLL name from the path
+    PathRemoveFileSpecA(dllPath);
+
+    _snprintf_s(filePath, MAX_PATH, "%s\\Opcodes.h", dllPath);
+    opcodeFile.open(filePath);
+
+    if (!opcodeFile)
+    {
+        opcodeFile.close();
+        opcodeFile.clear();
+
+        _snprintf_s(filePath, MAX_PATH, "%s\\Opcodes.cpp", dllPath);
+        opcodeFile.open(filePath);
+    }
+
+
+    if (!opcodeFile)
+    {
+        printf("Loaded 0 opcodes, file doesn't exist!\n");
+        return;
+    }
+
+    printf("Opcodes path: %s\n\n", filePath);
+
+    std::string line;
+    std::regex opcodereg("MSG_.*(=|,)0x");
+    while(std::getline(opcodeFile, line))
+    {
+        line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
+        // make sure the line is an opcode
+        if (!std::regex_search(line.c_str(), opcodereg))
+            continue;
+
+        std::string func = "";
+        if (line.find("=0x") == std::string::npos)
+        {
+            func = "DEFINE_OPCODE_HANDLER(";
+
+            if(line.find(func) == std::string::npos)
+                continue;
+        }
+
+        std::string opcode = line.substr(func.length(), line.find("0x") - func.length() - 1);
+        long opcodeNumber = strtol(line.substr(line.find("0x"), 6).c_str(), NULL, 0);
+
+        if (opcodeNumber > 0xFFFF || opcodeNumber < 0)
+            continue;
+
+        ValidateAndSetOpcode(opcode, opcodeNumber);
+    }
+
+    printf("Loaded %u SMSG opcodes\n", GetNumServerOpcodes());
+    printf("Loaded %u CMSG opcodes\n", GetNumCliOpcodes());
+    printf("Loaded %u MISC opcodes\n\n", GetNumMiscOpcodes());
 }

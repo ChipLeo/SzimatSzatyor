@@ -55,7 +55,7 @@ void CliThread()
                 continue;
             }
 
-            char* command[MAX_COMMAND_ARGS];
+            char* command[MAX_COMMAND_ARGS] = { 0 };
             char* arg = NULL;
             int numargs = 0;
             arg = strtok(command_str, " ");
@@ -65,9 +65,6 @@ void CliThread()
               arg = strtok (NULL, " ,.-");
               ++numargs;
             }
-
-            for (unsigned short i = numargs; i < MAX_COMMAND_ARGS; ++i)
-                command[i] = "";
 
             if (!numargs)
                 command[0] = command_str;

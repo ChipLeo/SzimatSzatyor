@@ -20,7 +20,7 @@
 #include <Aclapi.h>
 #include <cstdio>
 #include <list>
-#include "..\szimat\Shared.h"
+#include "Util.h"
 
 // default name of the process which will be hooked
 const char* lookingProcessName = "Wow.exe";
