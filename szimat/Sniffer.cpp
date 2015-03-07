@@ -215,8 +215,7 @@ unsigned int Sniffer::GetOpcodeFromParam(char* param)
          opcode = strtol(param, NULL, 0);
     else opcode = atol(param);
 
-    // 0x1FC9 current highest opcode 6.1.0 19702
-    if (opcode > 0x1FC9 || opcode < 0)
+    if (opcode > 0xFFFF || opcode < 0)
         return 0;
 
     return opcode;
