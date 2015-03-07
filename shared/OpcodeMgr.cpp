@@ -8,21 +8,22 @@
 #include <fstream>
 #include <algorithm>
 #include <regex>
+#include <iomanip>
 
 void OpcodeMgr::Initialize()
 {
     serverOpcodeTable = new OpcodeTable();
     clientOpcodeTable = new OpcodeTable();
-    miscOpcodeTable = new OpcodeTable();
 
     m_showKnownOpcodes = true;
+    m_showClientOpcodes = true;
+    m_showServerOpcodes = true;
 }
 
 void OpcodeMgr::ShutDown()
 {
     delete serverOpcodeTable;
     delete clientOpcodeTable;
-    delete miscOpcodeTable;
 }
 
 bool OpcodeMgr::IsKnownOpcode(unsigned int opcode, bool isServerOpcode)
@@ -50,7 +51,7 @@ std::string OpcodeMgr::GetOpcodeNameForLogging(unsigned int opcode, bool isServe
     }
     else ss << (isServerOpcode ? "SMSG" : "CMSG") << "_UNKNOWN_OPCODE";
 
-    ss << " 0x" << std::hex << std::uppercase << opcode << std::nouppercase << " (" << std::dec << opcode << ")]";
+    ss << " 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << opcode << std::nouppercase << " (" << std::dec << opcode << ")]";
     return ss.str();
 }
 
@@ -64,7 +65,7 @@ void OpcodeMgr::ValidateAndSetOpcode(const std::string& name, unsigned int opcod
         opcodeTable = clientOpcodeTable;
     else if (name.find("SMSG")  != std::string::npos)
         opcodeTable = serverOpcodeTable;
-    else opcodeTable = miscOpcodeTable;
+    else opcodeTable = clientOpcodeTable;
 
     if (OpcodeHandler* handler = opcodeTable->GetOpcodeHandler(opcodeNumber))
     {
@@ -134,6 +135,72 @@ void OpcodeMgr::LoadOpcodeFile(const HINSTANCE moduleHandle)
     }
 
     printf("Loaded %u SMSG opcodes\n", GetNumServerOpcodes());
-    printf("Loaded %u CMSG opcodes\n", GetNumCliOpcodes());
-    printf("Loaded %u MISC opcodes\n\n", GetNumMiscOpcodes());
+    printf("Loaded %u CMSG opcodes\n\n", GetNumCliOpcodes());
+}
+
+bool OpcodeMgr::IsBlocked(unsigned int opcode, bool serverOpcode)
+{
+    unsigned short type = serverOpcode ? 1 : 0;
+    OpcodeSet::const_iterator itr = m_blockedOpcodes[type].find(opcode);
+    if (itr != m_blockedOpcodes[type].end())
+        return true;
+
+    return false;
+}
+
+bool OpcodeMgr::ShouldShowOpcode(unsigned int opcode, unsigned int packetType)
+{
+    if (HasExclusive())
+    {
+        if (!IsExclusive(opcode, packetType != CMSG))
+            return false;
+    }
+    else
+    {
+        if (!ShowOpcodeType(packetType))
+            return false;
+
+        if (!ShowKnownOpcodes() && IsKnownOpcode(opcode, packetType != CMSG))
+            return false;
+
+        if (IsBlocked(opcode, packetType != CMSG))
+            return false;
+    }
+
+    return true;
+}
+
+bool OpcodeMgr::ShowOpcodeType(unsigned int type)
+{
+    switch (type)
+    {
+        case CMSG: return m_showClientOpcodes;
+        case SMSG: return m_showServerOpcodes;
+        default:   return true;
+    }
+}
+
+void OpcodeMgr::UnBlockAll(unsigned int type)
+{
+    for (OpcodeSet::const_iterator itr = m_blockedOpcodes[type].begin(); itr != m_blockedOpcodes[type].end(); ++itr)
+        printf("Opcode %s will now be shown\n", GetOpcodeNameForLogging(*itr, type ? true : false).c_str());
+
+    m_blockedOpcodes[type].clear();
+}
+
+void OpcodeMgr::ClearExclusive(unsigned short type)
+{
+    for (OpcodeSet::const_iterator itr = m_exclusiveOpcodes[type].begin(); itr != m_exclusiveOpcodes[type].end(); ++itr)
+        printf("Opcode %s is no longer exclusive\n", GetOpcodeNameForLogging(*itr, type ? true : false).c_str());
+
+    m_exclusiveOpcodes[type].clear();
+}
+
+bool OpcodeMgr::IsExclusive(unsigned int opcode, unsigned short type)
+{
+    OpcodeSet::const_iterator itr = m_exclusiveOpcodes[type].find(opcode);
+    if (itr != m_exclusiveOpcodes[type].end())
+        return true;
+
+    return false;
 }

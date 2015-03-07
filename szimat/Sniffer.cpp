@@ -22,6 +22,7 @@ void Sniffer::ProcessCliCommands()
     }
 }
 
+//@todo rewrite this, its ugly
 bool Sniffer::ParseCommand(char* command[], int numargs)
 {
     char* param = NULL;
@@ -113,11 +114,32 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
             printf("Opcode %s will now be shown\n", sOpcodeMgr->GetOpcodeNameForLogging(opcode, serverOpcode).c_str());
             return true;
         }
-        else if (strcmp(command[i], "toggleknown") == 0)
+        else if (strcmp(command[i], "toggle") == 0)
         {
-            sOpcodeMgr->ToggleKnownOpcodes();
-            printf("Show known opcodes: %s\n", sOpcodeMgr->ShowKnownOpcodes() ? "ON": "OFF");
-            return true;
+            param = command[++i];
+            if (!param)
+                return false;
+
+            if (strcmp(param, "known") == 0)
+            {
+                sOpcodeMgr->ToggleKnownOpcodes();
+                printf("Show known opcodes: %s\n", sOpcodeMgr->ShowKnownOpcodes() ? "ON": "OFF");
+                return true;
+            }
+            else if (strcmp(param, "client") == 0)
+            {
+                sOpcodeMgr->ToggleClientOpcodes();
+                printf("Show client opcodes: %s\n", sOpcodeMgr->ShowOpcodeType(CMSG) ? "ON": "OFF");
+                return true;
+            }
+            else if (strcmp(param, "server") == 0)
+            {
+                sOpcodeMgr->ToggleServerOpcodes();
+                printf("Show server opcodes: %s\n", sOpcodeMgr->ShowOpcodeType(SMSG) ? "ON": "OFF");
+                return true;
+            }
+
+            return false;
         }
         else if (strcmp(command[i], "exclusive") == 0)
         {
@@ -191,7 +213,7 @@ bool Sniffer::ParseCommand(char* command[], int numargs)
             printf("| quit        |                                      | Unhook the sniffer                             |\n");
             printf("| block       | #Opcode true/false                   | Block #opcode type (true=server, false=client) |\n");
             printf("| unblock     | #Opcode/all true/false               | Unblock #opcode (or all) of type ^             |\n");
-            printf("| toggleknown |                                      | Toggle showing/sniffing known opcodes          |\n");
+            printf("| toggle      | known/server/client                  | Toggle showing/sniffing opcodes of type        |\n");
             printf("| exclusive   | Add/del/clear #opcode/all true/false | Add/remove/clear exclusive opcodes of type     |\n");
             printf("| help        |                                      | Show commands                                  |\n");
             printf("|-----------------------------------------------------------------------------------------------------|\n");
@@ -227,13 +249,7 @@ void Sniffer::DumpPacket(PacketInfo const& info)
         ? *(DWORD*)info.dataStore->buffer
         : *(WORD*)info.dataStore->buffer;
 
-    if (!sOpcodeMgr->IsExclusive(packetOpcode, info.packetType != CMSG))
-        return;
-
-    if (!sOpcodeMgr->ShowKnownOpcodes() && sOpcodeMgr->IsKnownOpcode(packetOpcode, info.packetType != CMSG))
-        return;
-
-    if (sOpcodeMgr->IsBlocked(packetOpcode, info.packetType != CMSG))
+    if (!sOpcodeMgr->ShouldShowOpcode(packetOpcode, info.packetType))
         return;
 
     dumpMutex.lock();

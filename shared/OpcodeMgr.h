@@ -10,6 +10,9 @@
 #include <Windows.h>
 #include <unordered_map>
 
+#define CMSG 0x47534D43 // client to server, CMSG
+#define SMSG 0x47534D53 // server to client, SMSG
+
 struct OpcodeHandler
 {
     OpcodeHandler() {}
@@ -72,54 +75,27 @@ class OpcodeMgr
         void ValidateAndSetOpcode(const std::string& name, unsigned int opcodeNumber);
         void LoadOpcodeFile(const HINSTANCE moduleHandle);
 
+        bool ShouldShowOpcode(unsigned int opcode, unsigned int packetType);
         bool IsKnownOpcode(unsigned int opcode, bool isServerOpcode);
-        bool IsBlocked(unsigned int opcode, bool serverOpcode)
-        {
-            unsigned short type = serverOpcode ? 1 : 0;
-            OpcodeSet::const_iterator itr = m_blockedOpcodes[type].find(opcode);
-            if (itr != m_blockedOpcodes[type].end())
-                return true;
-
-            return false;
-        }
+        bool IsBlocked(unsigned int opcode, bool serverOpcode);
         void BlockOpcode(unsigned int opcode, unsigned short type) { m_blockedOpcodes[type].insert(opcode); }
         void UnBlockOpcode(unsigned int opcode, unsigned short type) { m_blockedOpcodes[type].erase(opcode); }
-        void UnBlockAll(unsigned short type)
-        {
-            for (OpcodeSet::const_iterator itr = m_blockedOpcodes[type].begin(); itr != m_blockedOpcodes[type].end(); ++itr)
-                printf("Opcode %s will now be shown\n", GetOpcodeNameForLogging(*itr, type ? true : false).c_str());
-
-            m_blockedOpcodes[type].clear();
-        }
+        void UnBlockAll(unsigned int type);
         bool ShowKnownOpcodes() { return m_showKnownOpcodes; }
+        bool ShowOpcodeType(unsigned int type);
         void ToggleKnownOpcodes() { m_showKnownOpcodes = !m_showKnownOpcodes; }
-
+        void ToggleClientOpcodes() { m_showClientOpcodes = !m_showClientOpcodes; }
+        void ToggleServerOpcodes() { m_showServerOpcodes = !m_showServerOpcodes; }
         void AddExclusiveOpcode(unsigned int opcode, unsigned short type) { m_exclusiveOpcodes[type].insert(opcode); }
         void DelExclusiveOpcode(unsigned int opcode, unsigned short type) { m_exclusiveOpcodes[type].erase(opcode); }
-        void ClearExclusive(unsigned short type)
-        {
-            for (OpcodeSet::const_iterator itr = m_exclusiveOpcodes[type].begin(); itr != m_exclusiveOpcodes[type].end(); ++itr)
-                printf("Opcode %s is no longer exclusive\n", GetOpcodeNameForLogging(*itr, type ? true : false).c_str());
-
-            m_exclusiveOpcodes[type].clear();
-        }
-        bool IsExclusive(unsigned int opcode, unsigned short type)
-        {
-            if (m_exclusiveOpcodes[0].empty() && m_exclusiveOpcodes[1].empty())
-                return true;
-
-            OpcodeSet::const_iterator itr = m_exclusiveOpcodes[type].find(opcode);
-            if (itr != m_exclusiveOpcodes[type].end())
-                return true;
-
-            return false;
-        }
+        void ClearExclusive(unsigned short type);
+        bool HasExclusive() { return !m_exclusiveOpcodes[0].empty() || !m_exclusiveOpcodes[1].empty(); }
+        bool IsExclusive(unsigned int opcode, unsigned short type);
 
         std::string GetOpcodeNameForLogging(unsigned int opcode, bool isServerOpcode);
 
         unsigned int GetNumCliOpcodes() { return clientOpcodeTable->size(); }
         unsigned int GetNumServerOpcodes() { return serverOpcodeTable->size(); }
-        unsigned int GetNumMiscOpcodes() { return miscOpcodeTable->size(); }
 
     private:
         OpcodeMgr() { }
@@ -127,14 +103,14 @@ class OpcodeMgr
 
         OpcodeTable* serverOpcodeTable;
         OpcodeTable* clientOpcodeTable;
-        OpcodeTable* miscOpcodeTable;
 
         typedef std::set<unsigned int> OpcodeSet;
         OpcodeSet m_blockedOpcodes[2];
         OpcodeSet m_exclusiveOpcodes[2];
 
         bool m_showKnownOpcodes;
-
+        bool m_showClientOpcodes;
+        bool m_showServerOpcodes;
 };
 
 #define sOpcodeMgr OpcodeMgr::instance()

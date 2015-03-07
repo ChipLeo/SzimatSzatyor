@@ -16,9 +16,6 @@
 
 #define MAX_COMMAND_ARGS 255
 
-#define CMSG 0x47534D43 // client to server, CMSG
-#define SMSG 0x47534D53 // server to client, SMSG
-
 #define PKT_VERSION 0x0301
 #define SNIFFER_ID  15
 
