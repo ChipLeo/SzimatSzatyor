@@ -129,8 +129,8 @@ DWORD MainThreadControl(LPVOID /* param */)
         FreeLibraryAndExitThread((HMODULE)instanceDLL, 0);
 
     // some info
-    printf("Welcome to SzimatSzatyor, a WoW injector sniffer.\n");
-    printf("SzimatSzatyor is distributed under the GNU GPLv3 license.\n");
+    printf("Welcome to SzimatSzatyor2, a WoW injector sniffer.\n");
+    printf("SzimatSzatyor2 is distributed under the GNU GPLv3 license.\n");
     printf("Source code is available at: ");
     printf("https://github.com/Aaron126/SzimatSzatyor2\n\n");
 

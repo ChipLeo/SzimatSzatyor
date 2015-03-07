@@ -45,7 +45,7 @@ public:
             return false;
 
         // nice title again :)
-        SetConsoleTitle("SzimatSzatyor, WoW injector sniffer");
+        SetConsoleTitle("SzimatSzatyor2, WoW injector sniffer");
 
         // re-opens STDOUT and STDIN handle as a console window output
         freopen("CONOUT$", "w", stdout);

@@ -33,12 +33,11 @@ struct CliCommandHolder
     std::string m_command;
     char* m_args[MAX_COMMAND_ARGS];
     Print* m_print;
-    int m_numargs;
 
     CommandFinished* m_commandFinished;
 
-    CliCommandHolder(void* callbackArg, char* command[], int numargs, Print* zprint, CommandFinished* commandFinished)
-        : m_callbackArg(callbackArg), m_print(zprint), m_commandFinished(commandFinished), m_numargs(numargs)
+    CliCommandHolder(void* callbackArg, char* command[], Print* zprint, CommandFinished* commandFinished)
+        : m_callbackArg(callbackArg), m_print(zprint), m_commandFinished(commandFinished)
     {
         m_command = command[0];
 

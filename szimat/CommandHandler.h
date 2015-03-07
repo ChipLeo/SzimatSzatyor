@@ -1,5 +1,5 @@
-#ifndef _Commands_h__
-#define _Commands_h__
+#ifndef _CommandHandler_h__
+#define _CommandHandler_h__
 
 #include <unordered_map>
 

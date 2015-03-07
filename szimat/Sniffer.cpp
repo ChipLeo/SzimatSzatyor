@@ -14,7 +14,7 @@ void Sniffer::ProcessCliCommands()
         zprint = command->m_print;
         callbackArg = command->m_callbackArg;
 
-        if (!sCommandMgr->HandleCommand(command->m_command, command->m_args, command->m_numargs))
+        if (!sCommandMgr->HandleCommand(command->m_command, command->m_args))
             printf("Invalid command. Type 'help' for a list of commands\n");
 
         if (command->m_commandFinished)

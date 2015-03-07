@@ -30,7 +30,7 @@ void CommandMgr::ClearCommands()
     }
 }
 
-bool CommandMgr::HandleCommand(const std::string& command, char* args[], int numargs)
+bool CommandMgr::HandleCommand(const std::string& command, char* args[])
 {
     CommandHandler* const handler = GetCommandHandler(command);
     if (!handler)

@@ -14,7 +14,7 @@ class CommandMgr
 
         void InitCommands();
         void ClearCommands();
-        bool HandleCommand(const std::string& command, char* args[], int numargs);
+        bool HandleCommand(const std::string& command, char* args[]);
         unsigned int GetOpcodeFromParam(char* param);
 
     private:

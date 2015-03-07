@@ -20,7 +20,6 @@ void commandFinished()
     fflush(stdout);
 }
 
-
 /// %Thread start
 void CliThread()
 {
@@ -55,6 +54,7 @@ void CliThread()
             char* arg = NULL;
             int numargs = 0;
             arg = strtok(command_str, " ");
+
             while (arg != NULL)
             {
               command[numargs] = arg;
@@ -66,7 +66,7 @@ void CliThread()
                 command[0] = command_str;
 
             fflush(stdout);
-            sSniffer->QueueCliCommand(new CliCommandHolder(NULL, command, numargs, &utf8print, &commandFinished));
+            sSniffer->QueueCliCommand(new CliCommandHolder(NULL, command, &utf8print, &commandFinished));
         }
         else if (feof(stdin))
         {
