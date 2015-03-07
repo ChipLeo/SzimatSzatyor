@@ -4,12 +4,8 @@
 
 #include <atomic>
 #include <thread>
-#include <string>
 #include <wtypes.h>
 #include <psapi.h>
-#include <Shlwapi.h>
-#include <cstdio>
-#include <io.h>
 
 #include "Util.h"
 #include "LockedQueue.h"
@@ -34,7 +30,8 @@ struct CliCommandHolder
     typedef void CommandFinished();
 
     void* m_callbackArg;
-    char* m_command[MAX_COMMAND_ARGS];
+    std::string m_command;
+    char* m_args[MAX_COMMAND_ARGS];
     Print* m_print;
     int m_numargs;
 
@@ -43,8 +40,10 @@ struct CliCommandHolder
     CliCommandHolder(void* callbackArg, char* command[], int numargs, Print* zprint, CommandFinished* commandFinished)
         : m_callbackArg(callbackArg), m_print(zprint), m_commandFinished(commandFinished), m_numargs(numargs)
     {
-        for (int i = 0; i < MAX_COMMAND_ARGS; ++i)
-            m_command[i] = command[i];
+        m_command = command[0];
+
+        for (unsigned char i = 1; i < MAX_COMMAND_ARGS; ++i)
+            m_args[i - 1] = command[i];
     }
 
     ~CliCommandHolder() { }
@@ -83,7 +82,6 @@ class Sniffer
 
         void SetCliThread(std::thread* cliThread) { m_cliThread = cliThread; }
         void ProcessCliCommands();
-        bool ParseCommand(char* command[], int numargs);
         void QueueCliCommand(CliCommandHolder* commandHolder) { cliCmdQueue.add(commandHolder); }
         void ShutdownCLIThread();
 

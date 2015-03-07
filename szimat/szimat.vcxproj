@@ -91,11 +91,14 @@ copy $(SolutionDir)README $(OutDir)</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CliRunnable.cpp" />
+    <ClCompile Include="CommandMgr.cpp" />
     <ClCompile Include="Sniffer.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CliRunnable.h" />
+    <ClInclude Include="CommandMgr.h" />
+    <ClInclude Include="CommandHandler.h" />
     <ClInclude Include="ConsoleManager.h" />
     <ClInclude Include="HookManager.h" />
     <ClInclude Include="Sniffer.h" />

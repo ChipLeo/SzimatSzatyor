@@ -1,6 +1,4 @@
 #include "Util.h"
-#include <exception>
-#include <windows.h>
 
 bool Utf8toWStr(char const* utf8str, size_t csize, wchar_t* wstr, size_t& wsize)
 {

@@ -1,5 +1,6 @@
 #include "Sniffer.h"
 #include "OpcodeMgr.h"
+#include "CommandMgr.h"
 
 std::atomic<bool> Sniffer::m_stopEvent(false);
 
@@ -13,234 +14,13 @@ void Sniffer::ProcessCliCommands()
         zprint = command->m_print;
         callbackArg = command->m_callbackArg;
 
-        if (!ParseCommand(command->m_command, command->m_numargs))
-            printf("Invalid parameter(s)\n");
+        if (!sCommandMgr->HandleCommand(command->m_command, command->m_args, command->m_numargs))
+            printf("Invalid command. Type 'help' for a list of commands\n");
 
         if (command->m_commandFinished)
             command->m_commandFinished();
         delete command;
     }
-}
-
-//@todo rewrite this, its ugly
-bool Sniffer::ParseCommand(char* command[], int numargs)
-{
-    char* param = NULL;
-    for (int i = 0; i < numargs; ++i)
-    {
-        if (strcmp(command[i], "quit") == 0)
-        {
-            Sniffer::Stop();
-            printf("Detaching...\n");
-            return true;
-        }
-        else if (strcmp(command[i], "block") == 0)
-        {
-            param = command[++i];
-            if (!param)
-                return false;
-
-            int opcode = 0;
-
-            opcode = GetOpcodeFromParam(param);
-            if (!opcode)
-                return false;
-
-            param = command[++i];
-            if (!param)
-                return false;
-
-            bool serverOpcode;
-            if (strcmp(param, "true") == 0)
-                serverOpcode = true;
-            else if (strcmp(param, "false") == 0)
-                serverOpcode = false;
-            else
-                return false;
-
-            sOpcodeMgr->BlockOpcode(opcode, serverOpcode);
-
-            printf("Opcode %s will no longer be shown\n", sOpcodeMgr->GetOpcodeNameForLogging(opcode, serverOpcode).c_str());
-            return true;
-        }
-        else if (strcmp(command[i], "unblock") == 0)
-        {
-            param = command[++i];
-            if (!param)
-                return false;
-
-            int opcode = 0;
-
-            if (strcmp(param, "all") == 0)
-            {
-                param = command[++i];
-                if (!param)
-                {
-                    sOpcodeMgr->UnBlockAll(0);
-                    sOpcodeMgr->UnBlockAll(1);
-                    return true;
-                }
-
-                bool serverOpcode;
-                if (strcmp(param, "true") == 0)
-                    serverOpcode = true;
-                else if (strcmp(param, "false") == 0)
-                    serverOpcode = false;
-                else
-                    return false;
-
-                sOpcodeMgr->UnBlockAll(serverOpcode);
-                return true;
-            }
-
-            opcode = GetOpcodeFromParam(param);
-            if (!opcode)
-                return false;
-
-            param = command[++i];
-            if (!param)
-                return false;
-
-            bool serverOpcode;
-            if (strcmp(param, "true") == 0)
-                serverOpcode = true;
-            else if (strcmp(param, "false") == 0)
-                serverOpcode = false;
-            else
-                return false;
-
-            sOpcodeMgr->UnBlockOpcode(opcode, serverOpcode);
-
-            printf("Opcode %s will now be shown\n", sOpcodeMgr->GetOpcodeNameForLogging(opcode, serverOpcode).c_str());
-            return true;
-        }
-        else if (strcmp(command[i], "toggle") == 0)
-        {
-            param = command[++i];
-            if (!param)
-                return false;
-
-            if (strcmp(param, "known") == 0)
-            {
-                sOpcodeMgr->ToggleKnownOpcodes();
-                printf("Show known opcodes: %s\n", sOpcodeMgr->ShowKnownOpcodes() ? "ON": "OFF");
-                return true;
-            }
-            else if (strcmp(param, "client") == 0)
-            {
-                sOpcodeMgr->ToggleClientOpcodes();
-                printf("Show client opcodes: %s\n", sOpcodeMgr->ShowOpcodeType(CMSG) ? "ON": "OFF");
-                return true;
-            }
-            else if (strcmp(param, "server") == 0)
-            {
-                sOpcodeMgr->ToggleServerOpcodes();
-                printf("Show server opcodes: %s\n", sOpcodeMgr->ShowOpcodeType(SMSG) ? "ON": "OFF");
-                return true;
-            }
-
-            return false;
-        }
-        else if (strcmp(command[i], "exclusive") == 0)
-        {
-            param = command[++i];
-            if (!param)
-                return false;
-
-            bool add, clear = false;
-            if (strcmp(param, "add") == 0)
-                add = true;
-            else if (strcmp(param, "del") == 0 || strcmp(param, "delete") == 0)
-                add = false;
-            else if (strcmp(param, "clear") == 0)
-                clear = true;
-            else
-                return false;
-
-            if (clear)
-            {
-                param = command[++i];
-                if (!param)
-                {
-                    sOpcodeMgr->ClearExclusive(true);
-                    sOpcodeMgr->ClearExclusive(false);
-                    return true;
-                }
-
-                bool serverOpcode;
-                if (strcmp(param, "true") == 0)
-                    serverOpcode = true;
-                else if (strcmp(param, "false") == 0)
-                    serverOpcode = false;
-                else
-                    return false;
-
-                sOpcodeMgr->ClearExclusive(serverOpcode);
-                return true;
-            }
-
-            param = command[++i];
-            unsigned int opcode;
-            opcode = GetOpcodeFromParam(param);
-            if (!opcode)
-                return false;
-
-            param = command[++i];
-            if (!param)
-                return false;
-
-            bool serverOpcode;
-            if (strcmp(param, "true") == 0)
-                serverOpcode = true;
-            else if (strcmp(param, "false") == 0)
-                serverOpcode = false;
-            else
-                return false;
-
-            printf("Opcode %s is %s exclusive\n", sOpcodeMgr->GetOpcodeNameForLogging(opcode, serverOpcode).c_str(), add ? "now" : "no longer");
-
-            if (add)
-                sOpcodeMgr->AddExclusiveOpcode(opcode, serverOpcode);
-            else sOpcodeMgr->DelExclusiveOpcode(opcode, serverOpcode);
-
-            return true;
-        }
-        else if (strcmp(command[i], "help") == 0)
-        {
-            printf("|-----------------------------------------------------------------------------------------------------|\n");
-            printf("| COMMAND     | PARAMS                               | DESCRIPTION                                    |\n");
-            printf("|-----------------------------------------------------------------------------------------------------|\n");
-            printf("| quit        |                                      | Unhook the sniffer                             |\n");
-            printf("| block       | #Opcode true/false                   | Block #opcode type (true=server, false=client) |\n");
-            printf("| unblock     | #Opcode/all true/false               | Unblock #opcode (or all) of type ^             |\n");
-            printf("| toggle      | known/server/client                  | Toggle showing/sniffing opcodes of type        |\n");
-            printf("| exclusive   | Add/del/clear #opcode/all true/false | Add/remove/clear exclusive opcodes of type     |\n");
-            printf("| help        |                                      | Show commands                                  |\n");
-            printf("|-----------------------------------------------------------------------------------------------------|\n");
-            return true;
-        }
-    }
-
-    printf("Invalid command. Type 'help' for list of commands\n");
-    return true;
-}
-
-unsigned int Sniffer::GetOpcodeFromParam(char* param)
-{
-    if (!param)
-        return 0;
-
-    long opcode;
-
-    std::string param_str(param);
-    if (param_str.find("0x") != std::string::npos)
-         opcode = strtol(param, NULL, 0);
-    else opcode = atol(param);
-
-    if (opcode > 0xFFFF || opcode < 0)
-        return 0;
-
-    return opcode;
 }
 
 void Sniffer::DumpPacket(PacketInfo const& info)
@@ -321,4 +101,61 @@ void Sniffer::DumpPacket(PacketInfo const& info)
     fflush(fileDump);
 
     dumpMutex.unlock();
+}
+
+void Sniffer::ShutdownCLIThread()
+{
+    if (m_cliThread != nullptr)
+    {
+        // First try to cancel any I/O in the CLI thread
+        if (!CancelSynchronousIo(m_cliThread->native_handle()))
+        {
+            // if CancelSynchronousIo() fails, print the error and try with old way
+            DWORD errorCode = GetLastError();
+            LPSTR errorBuffer;
+
+            DWORD formatReturnCode = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                                   nullptr, errorCode, 0, (LPTSTR)&errorBuffer, 0, nullptr);
+            if (!formatReturnCode)
+                errorBuffer = "Unknown error";
+
+            LocalFree(errorBuffer);
+
+            // send keyboard input to safely unblock the CLI thread
+            INPUT_RECORD b[4];
+            HANDLE hStdIn = GetStdHandle(STD_INPUT_HANDLE);
+            b[0].EventType = KEY_EVENT;
+            b[0].Event.KeyEvent.bKeyDown = TRUE;
+            b[0].Event.KeyEvent.uChar.AsciiChar = 'X';
+            b[0].Event.KeyEvent.wVirtualKeyCode = 'X';
+            b[0].Event.KeyEvent.wRepeatCount = 1;
+
+            b[1].EventType = KEY_EVENT;
+            b[1].Event.KeyEvent.bKeyDown = FALSE;
+            b[1].Event.KeyEvent.uChar.AsciiChar = 'X';
+            b[1].Event.KeyEvent.wVirtualKeyCode = 'X';
+            b[1].Event.KeyEvent.wRepeatCount = 1;
+
+            b[2].EventType = KEY_EVENT;
+            b[2].Event.KeyEvent.bKeyDown = TRUE;
+            b[2].Event.KeyEvent.dwControlKeyState = 0;
+            b[2].Event.KeyEvent.uChar.AsciiChar = '\r';
+            b[2].Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
+            b[2].Event.KeyEvent.wRepeatCount = 1;
+            b[2].Event.KeyEvent.wVirtualScanCode = 0x1c;
+
+            b[3].EventType = KEY_EVENT;
+            b[3].Event.KeyEvent.bKeyDown = FALSE;
+            b[3].Event.KeyEvent.dwControlKeyState = 0;
+            b[3].Event.KeyEvent.uChar.AsciiChar = '\r';
+            b[3].Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
+            b[3].Event.KeyEvent.wVirtualScanCode = 0x1c;
+            b[3].Event.KeyEvent.wRepeatCount = 1;
+            DWORD numb;
+            WriteConsoleInput(hStdIn, b, 4, &numb);
+        }
+
+        m_cliThread->join();
+        delete m_cliThread;
+    }
 }

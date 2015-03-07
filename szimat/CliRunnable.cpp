@@ -1,10 +1,6 @@
 #include "CliRunnable.h"
-#include "Util.h"
 #include "Sniffer.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <wchar.h>
 
 void utf8print(void* /*arg*/, const char* str)
 {

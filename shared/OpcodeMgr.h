@@ -1,10 +1,6 @@
 #ifndef _OpcodeMgr_h__
 #define _OpcodeMgr_h__
 
-#include <xstring>
-#include <ios>
-#include <iosfwd>
-#include <ostream>
 #include <sstream>
 #include <set>
 #include <Windows.h>

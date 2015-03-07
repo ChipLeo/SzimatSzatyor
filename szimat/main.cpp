@@ -16,16 +16,10 @@
 */
 
 #include "OpcodeMgr.h"
-#include "Sniffer.h"
+#include "CommandMgr.h"
 #include "CliRunnable.h"
-#include <thread>
-#include <Windows.h>
-#include <Shlwapi.h>
-#include <cstdio>
-#include <ctime>
 #include "ConsoleManager.h"
 #include "HookManager.h"
-#include <mutex>
 #include "Sniffer.h"
 
 // static member initilization
@@ -60,9 +54,9 @@ BYTE machineCodeHookSend[JMP_INSTRUCTION_SIZE] = { 0 };
 BYTE defaultMachineCodeSend[JMP_INSTRUCTION_SIZE] = { 0 };
 
 // this function will be called when recv called in the client
-DWORD __fastcall RecvHook3(void* thisPTR, void* dummy, void* param1, CDataStore* dataStore);
-DWORD __fastcall RecvHook4(void* thisPTR, void* dummy, void* param1, CDataStore* dataStore, void* param3);
-DWORD __fastcall RecvHook5(void* thisPTR, void* dummy, void* param1, void* param2, CDataStore* dataStore, void* param4);
+DWORD __fastcall RecvHook_PostVanilla(void* thisPTR, void* dummy, void* param1, CDataStore* dataStore);
+DWORD __fastcall RecvHook_PostWotLK(void* thisPTR, void* dummy, void* param1, CDataStore* dataStore, void* param3);
+DWORD __fastcall RecvHook_PostWoD(void* thisPTR, void* dummy, void* param1, void* param2, CDataStore* dataStore, void* param4);
 
 typedef DWORD(__thiscall *RecvProto3)(void*, void*, void*);
 typedef DWORD(__thiscall *RecvProto4)(void*, void*, void*, void*);
@@ -85,6 +79,21 @@ bool recvInitialized = false;
 // basically this method controls what the sniffer should do
 // pretty much like a "main method"
 DWORD MainThreadControl(LPVOID /* param */);
+
+enum Expansions
+{
+    EXPANSION_NONE,
+    EXPANSION_VANILLA,
+    EXPANSION_TBC,
+    EXPANSION_WOTLK,
+    EXPANSION_CATA,
+    EXPANSION_MOP,
+    EXPANSION_WOD,
+    MAX_EXPANSION
+};
+
+Expansions GetExpansion(unsigned int build);
+DWORD GetReceiveHook(Expansions exp);
 
 // entry point of the DLL
 BOOL APIENTRY DllMain(HINSTANCE instDLL, DWORD reason, LPVOID /* reserved */)
@@ -123,7 +132,7 @@ DWORD MainThreadControl(LPVOID /* param */)
     printf("Welcome to SzimatSzatyor, a WoW injector sniffer.\n");
     printf("SzimatSzatyor is distributed under the GNU GPLv3 license.\n");
     printf("Source code is available at: ");
-    printf("http://github.com/Anubisss/SzimatSzatyor\n\n");
+    printf("https://github.com/Aaron126/SzimatSzatyor2\n\n");
 
     printf("Type quit to stop sniffing ");
     printf("Note: you can simply re-attach the sniffer without ");
@@ -182,6 +191,7 @@ DWORD MainThreadControl(LPVOID /* param */)
     sSniffer->SetSnifferInfo(std::string(dllPath), locale, buildNumber);
     sOpcodeMgr->Initialize();
     sOpcodeMgr->LoadOpcodeFile(instanceDLL); // must be called after Initialize()
+    sCommandMgr->InitCommands();
 
     // gets address of NetClient::Send2
     sendAddress = baseAddress + hookEntry.send_2;
@@ -191,14 +201,9 @@ DWORD MainThreadControl(LPVOID /* param */)
 
     // gets address of NetClient::ProcessMessage
     recvAddress = baseAddress + hookEntry.receive;
-    // hooks client's recv function
 
-    if (buildNumber < 8606)
-        HookManager::Hook(recvAddress, (DWORD)RecvHook3, machineCodeHookRecv, defaultMachineCodeRecv);
-    else if (buildNumber < 19000)
-        HookManager::Hook(recvAddress, (DWORD)RecvHook4, machineCodeHookRecv, defaultMachineCodeRecv);
-    else
-        HookManager::Hook(recvAddress, (DWORD)RecvHook5, machineCodeHookRecv, defaultMachineCodeRecv);
+    // hooks client's recv function
+    HookManager::Hook(recvAddress, GetReceiveHook(GetExpansion(buildNumber)), machineCodeHookRecv, defaultMachineCodeRecv);
 
     printf("Recv is hooked.\n");
 
@@ -206,7 +211,7 @@ DWORD MainThreadControl(LPVOID /* param */)
     std::thread* cliThread = new std::thread(CliThread);
     sSniffer->SetCliThread(cliThread);
 
-    // loops until SIGINT (CTRL-C) occurs
+    // loops until SIGINT (CTRL-C) occurs or quit is called
     while (!isSigIntOccured && !Sniffer::IsStopped())
     {
         sSniffer->ProcessCliCommands();
@@ -215,6 +220,7 @@ DWORD MainThreadControl(LPVOID /* param */)
 
     sSniffer->ShutdownCLIThread();
     sOpcodeMgr->ShutDown();
+    sCommandMgr->ClearCommands();
 
     // unhooks functions
     HookManager::UnHook(sendAddress, defaultMachineCodeSend);
@@ -227,63 +233,6 @@ DWORD MainThreadControl(LPVOID /* param */)
     // reason DLL_PROCESS_DETACH
     FreeLibraryAndExitThread((HMODULE)instanceDLL, 0);
     return 0;
-}
-
-void Sniffer::ShutdownCLIThread()
-{
-    if (m_cliThread != nullptr)
-    {
-        // First try to cancel any I/O in the CLI thread
-        if (!CancelSynchronousIo(m_cliThread->native_handle()))
-        {
-            // if CancelSynchronousIo() fails, print the error and try with old way
-            DWORD errorCode = GetLastError();
-            LPSTR errorBuffer;
-
-            DWORD formatReturnCode = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS,
-                                                   nullptr, errorCode, 0, (LPTSTR)&errorBuffer, 0, nullptr);
-            if (!formatReturnCode)
-                errorBuffer = "Unknown error";
-
-            LocalFree(errorBuffer);
-
-            // send keyboard input to safely unblock the CLI thread
-            INPUT_RECORD b[4];
-            HANDLE hStdIn = GetStdHandle(STD_INPUT_HANDLE);
-            b[0].EventType = KEY_EVENT;
-            b[0].Event.KeyEvent.bKeyDown = TRUE;
-            b[0].Event.KeyEvent.uChar.AsciiChar = 'X';
-            b[0].Event.KeyEvent.wVirtualKeyCode = 'X';
-            b[0].Event.KeyEvent.wRepeatCount = 1;
-
-            b[1].EventType = KEY_EVENT;
-            b[1].Event.KeyEvent.bKeyDown = FALSE;
-            b[1].Event.KeyEvent.uChar.AsciiChar = 'X';
-            b[1].Event.KeyEvent.wVirtualKeyCode = 'X';
-            b[1].Event.KeyEvent.wRepeatCount = 1;
-
-            b[2].EventType = KEY_EVENT;
-            b[2].Event.KeyEvent.bKeyDown = TRUE;
-            b[2].Event.KeyEvent.dwControlKeyState = 0;
-            b[2].Event.KeyEvent.uChar.AsciiChar = '\r';
-            b[2].Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
-            b[2].Event.KeyEvent.wRepeatCount = 1;
-            b[2].Event.KeyEvent.wVirtualScanCode = 0x1c;
-
-            b[3].EventType = KEY_EVENT;
-            b[3].Event.KeyEvent.bKeyDown = FALSE;
-            b[3].Event.KeyEvent.dwControlKeyState = 0;
-            b[3].Event.KeyEvent.uChar.AsciiChar = '\r';
-            b[3].Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
-            b[3].Event.KeyEvent.wVirtualScanCode = 0x1c;
-            b[3].Event.KeyEvent.wRepeatCount = 1;
-            DWORD numb;
-            WriteConsoleInput(hStdIn, b, 4, &numb);
-        }
-
-        m_cliThread->join();
-        delete m_cliThread;
-    }
 }
 
 DWORD __fastcall SendHook(void* thisPTR, void* dummy , CDataStore* dataStore, void* param2)
@@ -312,7 +261,7 @@ DWORD __fastcall SendHook(void* thisPTR, void* dummy , CDataStore* dataStore, vo
 
 #pragma region RecvHook
 
-DWORD __fastcall RecvHook3(void* thisPTR, void* dummy, void* param1, CDataStore* dataStore)
+DWORD __fastcall RecvHook_PostVanilla(void* thisPTR, void* dummy, void* param1, CDataStore* dataStore)
 {
     // packet dump
     sSniffer->DumpPacket(PacketInfo(SMSG, 0, 2, dataStore));
@@ -335,7 +284,7 @@ DWORD __fastcall RecvHook3(void* thisPTR, void* dummy, void* param1, CDataStore*
     return returnValue;
 }
 
-DWORD __fastcall RecvHook4(void* thisPTR, void* dummy, void* param1, CDataStore* dataStore, void* param3)
+DWORD __fastcall RecvHook_PostWotLK(void* thisPTR, void* dummy, void* param1, CDataStore* dataStore, void* param3)
 {
     WORD opcodeSize = buildNumber <= WOW_MOP_16135 ? 2 : 4;
     // packet dump
@@ -359,7 +308,7 @@ DWORD __fastcall RecvHook4(void* thisPTR, void* dummy, void* param1, CDataStore*
     return returnValue;
 }
 
-DWORD __fastcall RecvHook5(void* thisPTR, void* dummy, void* param1, void* param2, CDataStore* dataStore, void* param4)
+DWORD __fastcall RecvHook_PostWoD(void* thisPTR, void* dummy, void* param1, void* param2, CDataStore* dataStore, void* param4)
 {
     // packet dump
     sSniffer->DumpPacket(PacketInfo(SMSG, (DWORD)param4, 4, dataStore));
@@ -383,3 +332,57 @@ DWORD __fastcall RecvHook5(void* thisPTR, void* dummy, void* param1, void* param
 }
 
 #pragma endregion
+
+DWORD GetReceiveHook(Expansions exp)
+{
+    switch (exp)
+    {
+        case EXPANSION_VANILLA:
+        case EXPANSION_TBC:
+            return (DWORD)RecvHook_PostVanilla;
+            break;
+        case EXPANSION_WOTLK:
+        case EXPANSION_CATA:
+        case EXPANSION_MOP:
+            return (DWORD)RecvHook_PostWotLK;
+            break;
+        case EXPANSION_WOD:
+            return (DWORD)RecvHook_PostWoD;
+            break;
+        default:
+        {
+            printf("\nERROR: Pre-release builds are not supported");
+            system("pause");
+            FreeLibraryAndExitThread((HMODULE)instanceDLL, 0);
+        }
+    }
+}
+
+Expansions GetExpansion(unsigned int build)
+{
+    // 6.0.2
+    if (build >= 19033)
+        return EXPANSION_WOD;
+
+    // 5.0.4
+    if (build >= 16016)
+        return EXPANSION_MOP;
+
+    // 4.0.1
+    if (build >= 13164)
+        return EXPANSION_CATA;
+
+    // 3.0.2
+    if (build >= 9056)
+        return EXPANSION_WOTLK;
+
+    // 2.0.1
+    if (build >= 6180)
+        return EXPANSION_TBC;
+
+    // 1.1.0
+    if (build >= 4044)
+        return EXPANSION_VANILLA;
+
+    return EXPANSION_NONE;
+}

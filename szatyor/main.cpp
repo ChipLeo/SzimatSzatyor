@@ -18,7 +18,6 @@
 #include <Windows.h>
 #include <TlHelp32.h>
 #include <Aclapi.h>
-#include <cstdio>
 #include <list>
 #include "Util.h"
 

@@ -1,12 +1,6 @@
 #include "OpcodeMgr.h"
-#include <wtypes.h>
-#include <psapi.h>
 #include <Shlwapi.h>
-#include <cstdio>
-#include <io.h>
-#include <iostream>
 #include <fstream>
-#include <algorithm>
 #include <regex>
 #include <iomanip>
 
@@ -101,7 +95,7 @@ void OpcodeMgr::LoadOpcodeFile(const HINSTANCE moduleHandle)
 
     if (!opcodeFile)
     {
-        printf("Loaded 0 opcodes, file doesn't exist!\n");
+        printf("Loaded 0 opcodes, file doesn't exist!\n\n");
         return;
     }
 
