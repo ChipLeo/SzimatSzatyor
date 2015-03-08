@@ -74,19 +74,17 @@ void OpcodeMgr::LoadOpcodeFile(const HINSTANCE moduleHandle)
 {
     char dllPath[MAX_PATH];
     char filePath[MAX_PATH];
-    const std::string opcodeFiles[] { "Opcodes.h", "Opcodes.cpp", "Opcodes.cs", "" };
+    const std::string opcodeFiles[] { "Opcodes.h", "Opcodes.cpp", "Opcodes.cs"};
     std::ifstream opcodeFile;
 
     GetModuleFileNameA((HMODULE)moduleHandle, dllPath, MAX_PATH);
     // removes the DLL name from the path
     PathRemoveFileSpecA(dllPath);
 
-    for (unsigned char i = 0; i < 0xFF; ++i)
+    int len = sizeof(opcodeFiles) / sizeof(std::string);
+    for (int i = 0; i < len; ++i)
     {
         std::string fileName = opcodeFiles[i];
-        if (fileName == "")
-            break;
-
         _snprintf_s(filePath, MAX_PATH, "%s\\%s", dllPath, fileName.c_str());
         opcodeFile.open(filePath);
 
