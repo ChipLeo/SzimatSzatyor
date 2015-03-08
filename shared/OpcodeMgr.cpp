@@ -74,32 +74,33 @@ void OpcodeMgr::LoadOpcodeFile(const HINSTANCE moduleHandle)
 {
     char dllPath[MAX_PATH];
     char filePath[MAX_PATH];
+    const std::string opcodeFiles[] { "Opcodes.h", "Opcodes.cpp", "Opcodes.cs", "" };
     std::ifstream opcodeFile;
 
     GetModuleFileNameA((HMODULE)moduleHandle, dllPath, MAX_PATH);
     // removes the DLL name from the path
     PathRemoveFileSpecA(dllPath);
 
-    _snprintf_s(filePath, MAX_PATH, "%s\\Opcodes.h", dllPath);
-    opcodeFile.open(filePath);
-
-    if (!opcodeFile)
+    for (unsigned char i = 0; i < 0xFF; ++i)
     {
-        opcodeFile.close();
-        opcodeFile.clear();
+        std::string fileName = opcodeFiles[i];
+        if (fileName == "")
+            break;
 
-        _snprintf_s(filePath, MAX_PATH, "%s\\Opcodes.cpp", dllPath);
+        _snprintf_s(filePath, MAX_PATH, "%s\\%s", dllPath, fileName.c_str());
         opcodeFile.open(filePath);
+
+        if (opcodeFile)
+            break;
     }
 
-
-    if (!opcodeFile)
+    if (opcodeFile)
+        printf("Opcodes path: %s\n\n", filePath);
+    else
     {
         printf("Loaded 0 opcodes, file doesn't exist!\n\n");
         return;
     }
-
-    printf("Opcodes path: %s\n\n", filePath);
 
     std::string line;
     std::regex opcodereg("MSG_.*(=|,)0x");
@@ -113,7 +114,10 @@ void OpcodeMgr::LoadOpcodeFile(const HINSTANCE moduleHandle)
         std::string func = "";
         if (line.find("=0x") == std::string::npos)
         {
-            func = "DEFINE_OPCODE_HANDLER(";
+            // WowPacketParser / old packet system
+            if (line.find("Opcode.") == std::string::npos)
+                func = "DEFINE_OPCODE_HANDLER(";
+            else func = "{Opcode.";
 
             if(line.find(func) == std::string::npos)
                 continue;
