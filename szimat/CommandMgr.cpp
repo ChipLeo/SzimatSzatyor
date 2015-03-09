@@ -14,7 +14,7 @@ void CommandMgr::InitCommands()
 {
     AddCommand("quit", "Syntax: 'quit'\nUnhook the sniffer", &CommandMgr::HandleQuitCommand);
     AddCommand("block", "Syntax: 'block [#opcode] [true|false]' (true=server, false=client)\nBlock a specific opcode from being sniffed", &CommandMgr::HandleBlockCommand);
-    AddCommand("unblock", "Syntax: 'unblock [#opcode|all] [true|false]' (true=server, false=client)\nUnblock a specific opcode (or all) from being sniffed", &CommandMgr::HandleBlockCommand);
+    AddCommand("unblock", "Syntax: 'unblock [#opcode|all] [true|false]' (true=server, false=client)\nUnblock a specific opcode (or all) from being sniffed", &CommandMgr::HandleUnblockCommand);
     AddCommand("toggle", "Syntax: 'toggle [known|server|client]'\nToggle sniffing known, server, or client opcodes", &CommandMgr::HandleToggleCommand);
     AddCommand("exclusive", "Syntax: 'exclusive [add|del|clear] [#opcode|all] [true|false]'\nMake only a specific opcode(s) be sniffed", &CommandMgr::HandleExclusiveCommand);
     AddCommand("help", "Syntax: 'help', Display the list of commands", &CommandMgr::HandleHelpCommand);
