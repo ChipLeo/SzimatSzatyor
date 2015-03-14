@@ -36,13 +36,13 @@ HookEntry hookEntry;
 
 // this function will be called when send called in the client
 // client has thiscall calling convention
-// that means: this pointer is passed via the ECX register
+// that means: this pointer is passed via the ECX/RCX register
 // fastcall convention means that the first 2 parameters is passed
-// via ECX and EDX registers so the first param will be the this pointer and
+// via ECX/RCX and EDX/RDX registers so the first param will be the this pointer and
 // the second one is just a dummy (not used)
-DWORD __fastcall SendHook(void* thisPTR, void*, CDataStore*, void*);
+DWORD __fastcall SendHook(void* thisPTR, void*, CDataStore*, DWORD);
 
-typedef DWORD(__thiscall *SendProto)(void*, void*, void*);
+typedef DWORD(__thiscall *SendProto)(void*, void*, DWORD);
 
 // address of WoW's send function
 DWORD sendAddress = 0;
@@ -196,14 +196,14 @@ DWORD MainThreadControl(LPVOID /* param */)
     // gets address of NetClient::Send2
     sendAddress = baseAddress + hookEntry.send_2;
     // hooks client's send function
-    HookManager::Hook(sendAddress, (DWORD)SendHook, machineCodeHookSend, defaultMachineCodeSend);
+    HookManager::Hook(sendAddress, (DWORD_PTR)SendHook, machineCodeHookSend, defaultMachineCodeSend);
     printf("Send is hooked.\n");
 
     // gets address of NetClient::ProcessMessage
     recvAddress = baseAddress + hookEntry.receive;
 
     // hooks client's recv function
-    HookManager::Hook(recvAddress, GetReceiveHook(GetExpansion(buildNumber)), machineCodeHookRecv, defaultMachineCodeRecv);
+    HookManager::Hook(recvAddress, (DWORD_PTR)GetReceiveHook(GetExpansion(buildNumber)), machineCodeHookRecv, defaultMachineCodeRecv);
 
     printf("Recv is hooked.\n");
 
@@ -223,8 +223,8 @@ DWORD MainThreadControl(LPVOID /* param */)
     sCommandMgr->ClearCommands();
 
     // unhooks functions
-    HookManager::UnHook(sendAddress, defaultMachineCodeSend);
-    HookManager::UnHook(recvAddress, defaultMachineCodeRecv);
+    HookManager::WriteBlock(sendAddress, defaultMachineCodeSend);
+    HookManager::WriteBlock(recvAddress, defaultMachineCodeRecv);
 
     printf("Detached!\n");
 
@@ -235,20 +235,20 @@ DWORD MainThreadControl(LPVOID /* param */)
     return 0;
 }
 
-DWORD __fastcall SendHook(void* thisPTR, void* dummy , CDataStore* dataStore, void* param2)
+DWORD __fastcall SendHook(void* thisPTR, void* dummy , CDataStore* dataStore, DWORD connectionId)
 {
     // dumps the packet
-    sSniffer->DumpPacket(PacketInfo(CMSG, (DWORD)param2, 4, dataStore));
+    sSniffer->DumpPacket(PacketInfo(CMSG, connectionId, 4, dataStore));
 
     // unhooks the send function
-    HookManager::UnHook(sendAddress, defaultMachineCodeSend);
+    HookManager::WriteBlock(sendAddress, defaultMachineCodeSend);
 
     // now let's call client's function
     // so it can send the packet to the server (connection, CDataStore*, 2)
-    DWORD returnValue = SendProto(sendAddress)(thisPTR, dataStore, param2);
+    DWORD returnValue = SendProto(sendAddress)(thisPTR, dataStore, connectionId);
 
     // hooks again to catch the next outgoing packets also
-    HookManager::ReHook(sendAddress, machineCodeHookSend);
+    HookManager::WriteBlock(sendAddress, machineCodeHookSend);
 
     if (!sendInitialized)
     {
@@ -267,13 +267,13 @@ DWORD __fastcall RecvHook_PostVanilla(void* thisPTR, void* dummy, void* param1, 
     sSniffer->DumpPacket(PacketInfo(SMSG, 0, 2, dataStore));
 
     // unhooks the recv function
-    HookManager::UnHook(recvAddress, defaultMachineCodeRecv);
+    HookManager::WriteBlock(recvAddress, defaultMachineCodeRecv);
 
     // calls client's function so it can processes the packet
     DWORD returnValue = RecvProto3(recvAddress)(thisPTR, param1, dataStore);
 
     // hooks again to catch the next incoming packets also
-    HookManager::ReHook(recvAddress, machineCodeHookRecv);
+    HookManager::WriteBlock(recvAddress, machineCodeHookRecv);
 
     if (!recvInitialized)
     {
@@ -291,13 +291,13 @@ DWORD __fastcall RecvHook_PostWotLK(void* thisPTR, void* dummy, void* param1, CD
     sSniffer->DumpPacket(PacketInfo(SMSG, (DWORD)param3, opcodeSize, dataStore));
 
     // unhooks the recv function
-    HookManager::UnHook(recvAddress, defaultMachineCodeRecv);
+    HookManager::WriteBlock(recvAddress, defaultMachineCodeRecv);
 
     // calls client's function so it can processes the packet
     DWORD returnValue = RecvProto4(recvAddress)(thisPTR, param1, dataStore, param3);
 
     // hooks again to catch the next incoming packets also
-    HookManager::ReHook(recvAddress, machineCodeHookRecv);
+    HookManager::WriteBlock(recvAddress, machineCodeHookRecv);
 
     if (!recvInitialized)
     {
@@ -314,13 +314,13 @@ DWORD __fastcall RecvHook_PostWoD(void* thisPTR, void* dummy, void* param1, void
     sSniffer->DumpPacket(PacketInfo(SMSG, (DWORD)param4, 4, dataStore));
 
     // unhooks the recv function
-    HookManager::UnHook(recvAddress, defaultMachineCodeRecv);
+    HookManager::WriteBlock(recvAddress, defaultMachineCodeRecv);
 
     // calls client's function so it can processes the packet
     DWORD returnValue = RecvProto5(recvAddress)(thisPTR, param1, param2, dataStore, param4);
 
     // hooks again to catch the next incoming packets also
-    HookManager::ReHook(recvAddress, machineCodeHookRecv);
+    HookManager::WriteBlock(recvAddress, machineCodeHookRecv);
 
     if (!recvInitialized)
     {

@@ -55,13 +55,13 @@ private:
 struct PacketInfo
 {
     PacketInfo() : packetType(0), connectionId(0), opcodeSize(0), dataStore(nullptr) { }
-    PacketInfo(DWORD PacketType, DWORD ConnectionId, WORD OpcodeSize, CDataStore* DataStore) :
+    PacketInfo(DWORD64 PacketType, DWORD ConnectionId, WORD OpcodeSize, CDataStore* DataStore) :
         packetType(PacketType), connectionId(ConnectionId), opcodeSize(OpcodeSize),
         dataStore(DataStore)
     {
     }
 
-    DWORD packetType;
+    DWORD64 packetType;
     DWORD connectionId;
     WORD opcodeSize;
     CDataStore* dataStore;

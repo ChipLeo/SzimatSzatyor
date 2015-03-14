@@ -55,7 +55,7 @@ bool consoleToUtf8(const std::string& conStr, std::string& utf8str)
 {
     std::wstring wstr;
     wstr.resize(conStr.size());
-    OemToCharBuffW(&conStr[0], &wstr[0], conStr.size());
+    OemToCharBuffW(&conStr[0], &wstr[0], (DWORD)conStr.size());
 
     return WStrToUtf8(wstr, utf8str);
 }
@@ -135,7 +135,6 @@ WORD GetBuildNumberFromProcess(HANDLE hProcess)
 // return the HookEntry from current build
 bool GetOffsets(const HINSTANCE moduleHandle, const WORD build, HookEntry* entry)
 {
-    char ret[20];
     char fileName[MAX_PATH];
     char dllPath[MAX_PATH];
     char section[6];
@@ -158,15 +157,9 @@ bool GetOffsets(const HINSTANCE moduleHandle, const WORD build, HookEntry* entry
         return false;
     }
 
-    GetPrivateProfileStringA(section, "send_2", "0", ret, 20, fileName);
-    entry->send_2 = strtol(ret, 0, 0);
-
-    GetPrivateProfileStringA(section, "receive", "0", ret, 20, fileName);
-    entry->receive = strtol(ret, 0, 0);
-
-    // optional
-    GetPrivateProfileStringA(section, "locale", "0", ret, 20, fileName);
-    entry->locale = strtol(ret, 0, 0);
+    entry->send_2 =  GetPrivateProfileIntA(section, "send_2", 0, fileName);
+    entry->receive = GetPrivateProfileIntA(section, "receive", 0, fileName);
+    entry->locale =  GetPrivateProfileIntA(section, "locale", 0, fileName); // optional
 
     return entry->receive != 0 && entry->send_2 != 0;
 }

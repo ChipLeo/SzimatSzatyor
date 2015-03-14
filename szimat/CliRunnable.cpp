@@ -10,7 +10,7 @@ void utf8print(void* /*arg*/, const char* str)
         return;
 
     char temp_buf[6000];
-    CharToOemBuffW(&wtemp_buf[0], &temp_buf[0], wtemp_len+1);
+    CharToOemBuffW(&wtemp_buf[0], &temp_buf[0], (DWORD)wtemp_len+1);
     printf(temp_buf);
 }
 

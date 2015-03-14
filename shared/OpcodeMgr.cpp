@@ -1,4 +1,6 @@
 #include "OpcodeMgr.h"
+#include "Util.h"
+
 #include <Shlwapi.h>
 #include <fstream>
 #include <regex>
@@ -104,7 +106,7 @@ void OpcodeMgr::LoadOpcodeFile(const HINSTANCE moduleHandle)
     std::regex opcodereg("MSG_.*(=|,)0x");
     while(std::getline(opcodeFile, line))
     {
-        line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
+        line.erase(std::remove_if(line.begin(), line.end(), char_isspace), line.end());
         // make sure the line is an opcode
         if (!std::regex_search(line.c_str(), opcodereg))
             continue;
@@ -144,7 +146,7 @@ bool OpcodeMgr::IsBlocked(unsigned int opcode, bool serverOpcode)
     return false;
 }
 
-bool OpcodeMgr::ShouldShowOpcode(unsigned int opcode, unsigned int packetType)
+bool OpcodeMgr::ShouldShowOpcode(unsigned int opcode, DWORD64 packetType)
 {
     if (HasExclusive())
     {
@@ -166,7 +168,7 @@ bool OpcodeMgr::ShouldShowOpcode(unsigned int opcode, unsigned int packetType)
     return true;
 }
 
-bool OpcodeMgr::ShowOpcodeType(unsigned int type)
+bool OpcodeMgr::ShowOpcodeType(DWORD64 type)
 {
     switch (type)
     {

@@ -71,14 +71,14 @@ class OpcodeMgr
         void ValidateAndSetOpcode(const std::string& name, unsigned int opcodeNumber);
         void LoadOpcodeFile(const HINSTANCE moduleHandle);
 
-        bool ShouldShowOpcode(unsigned int opcode, unsigned int packetType);
+        bool ShouldShowOpcode(unsigned int opcode, DWORD64 packetType);
         bool IsKnownOpcode(unsigned int opcode, bool isServerOpcode);
         bool IsBlocked(unsigned int opcode, bool serverOpcode);
         void BlockOpcode(unsigned int opcode, unsigned short type) { m_blockedOpcodes[type].insert(opcode); }
         void UnBlockOpcode(unsigned int opcode, unsigned short type) { m_blockedOpcodes[type].erase(opcode); }
         void UnBlockAll(unsigned int type);
         bool ShowKnownOpcodes() { return m_showKnownOpcodes; }
-        bool ShowOpcodeType(unsigned int type);
+        bool ShowOpcodeType(DWORD64 type);
         void ToggleKnownOpcodes() { m_showKnownOpcodes = !m_showKnownOpcodes; }
         void ToggleClientOpcodes() { m_showClientOpcodes = !m_showClientOpcodes; }
         void ToggleServerOpcodes() { m_showServerOpcodes = !m_showServerOpcodes; }
@@ -90,8 +90,8 @@ class OpcodeMgr
 
         std::string GetOpcodeNameForLogging(unsigned int opcode, bool isServerOpcode);
 
-        unsigned int GetNumCliOpcodes() { return clientOpcodeTable->size(); }
-        unsigned int GetNumServerOpcodes() { return serverOpcodeTable->size(); }
+        size_t GetNumCliOpcodes() { return clientOpcodeTable->size(); }
+        size_t GetNumServerOpcodes() { return serverOpcodeTable->size(); }
 
     private:
         OpcodeMgr() { }
