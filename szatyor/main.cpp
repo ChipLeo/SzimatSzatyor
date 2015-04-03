@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
     printf("Welcome to SzimatSzatyor2, a WoW injector sniffer.\n");
     printf("SzimatSzatyor2 is distributed under the GNU GPLv3 license.\n");
     printf("Source code is available at: ");
-    printf("https://github.com/Aaron126/SzimatSzatyor2\n\n");
+    printf("https://github.com/Zedron/SzimatSzatyor2\n\n");
 
     if (argc > 2)
     {
