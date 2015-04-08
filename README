@@ -1,26 +1,20 @@
                                   SzimatSzatyor                                 
 ===============================================================================
 
-
-
    SzimatSzatyor is a WoW (World of Warcraft) injector sniffer written in C++.
-   A sniffer can log packets which sended by the server and which sended by
-the client also. The code using a lot of low-level C Windows API.
-   Some words about the project name: szimatszatyor is a
-hungarian compound word, in English "szimat" should be "sniff" or "flair" and
-"szatyor" should be "bag". This project is a sniffer so that's why I named it
-to szimatszatyor because of the szimat =~ sniff. By the way szimatszatyor is
-a bag where gas mask is stored (so gas mask bag) and nowadays it's a
-fashionable bag which weared by some people.
-A picture of szimatszatyor: http://i.imgur.com/5elL0T9.jpg
-   Basically szatyor.exe is the injector which injects the DLL (szatyor.dll)
-into the client process and szatyor.dll is the sniffer which sniffs the
-packets from the client.
+   A sniffer can log packets which are sent by the server and client.
+   The code uses a lot of low-level C Windows API. Some info about the
+   project name: Szimatszatyor is a Hungarian compound word, in English "szimat"
+   means "sniff" or "flair", and "szatyor" means "bag". Also a Szimatszatyor
+   is a bag which stores a gas mask. Nowadays it's a fashionable bag worn
+   by some people. A picture of a Szimatszatyor: http://i.imgur.com/5elL0T9.jpg
+   Szatyor.exe injects the DLL (szatyor.dll) into the client process and szatyor.dll
+   is the sniffer which sniffs the packets to/from the client.
 
 *FEATURES:
-    - Can target specific WoW clients by name (default is Wow.exe andWowB.exe)
-      via pass an argument to the injector, usage: szatyor.exe [wow_exe_name]
-    - Can detect the targeted WoW process build number so supports
+    - Can target specific WoW clients by name (default is WoW.exe) via passing
+      an argument to the injector, usage: szatyor.exe [wow_exe_name]
+    - Can detect the targeted WoW process build number to support
       multiple builds.
     - Can detect if multiple processes have the same
       name (which should be injected) and gives choice which should
@@ -29,64 +23,55 @@ packets from the client.
     - Dumps packets to a binary file which is can be parsed by
       TrinityCore's WowPacketParser which is available at here:
       https://github.com/TrinityCore/WowPacketParser
-    - Dumps packets to a "user friendly" log file which makes possible to
-      read the packets without parsing them. This feature is disabled by
-      default. Read the "USAGE" section to know how to enable it.
+    - Has many commands useful for managing opcodes
+    - Shows a console message with the opcode name when an opcode
+      is dumped
+    - Supports opcode names from virtually any client build
 
 *USAGE:
     - You need szatyor.exe (the injector) and szimat.dll (the sniffer)
       in the same directory. Note: like other (most) sniffers this directory
       can be different than WoW's directory.
+    - If you wish to have named opcodes in the console, place your
+      Opcodes.h(new opcode system) or Opcodes.cpp(old opcode system) or
+      Opcodes.cs(WowPacketParser) in the same directory as your DLL's
     - Start szatyor.exe
       Note: the user which started WoW should start that too, of course 
             admin user is also OK but not needed.
-    - That's all. You can start SzimatSzatyor at anytime.
-    - If you want to close the sniffer just press CTRL-C or close the WoW.
-      Note: CTRL-C works only in fullscreen mode.
+    - If you want to stop sniffing you can type 'quit' into the console
     - Log files are created to where SzimatSzatyor is.
-    - Create an empty file (name: dump_user_friendly) where the SzimatSzatyor
-      is to enable the "user friendly" log format. Just delete (or rename)
-      this file if you want to disable it again. You can NOT enable or disable
-      while WoW is running.
 
+CLIENT VERSIONS SUPPORTED:
+    - See Offsets.ini file for list of supported builds
 
-Currently supported clients:
-    - Classic/Vanilla:          5875
-    - The Burning Crusade:      8606
-    - Wrath of the Lich King:   12340
-    - Cataclysm:                13623, 15595
-    - Mists of Pandaria:        Look offsets.ini
+WARNING:
+    An injector sniffer (like SzimatSzatyor) writes into WoW's memory
+    at runtime. So Warden (Blizzard's anticheat) can detect it.
+    However there have been no reported cases of being banned for using
+    sniffer, so it is unlikely that using this program could get
+    you banned.
 
-WARNING: An injector sniffer (like SzimatSzatyor) is writing into WoW's memory
-         at runtime so Warden (anti-cheating tool in WoW) can detect it.
-         At this time never detected by Warden and no punishment rewarded.
-         I think Blizzard just doesn't care about it,
-         it's not really a cheat... :)
+COMPILATION:    
+    If you want to compile SzimatSzatyor from the source code
+    then you have to generate the project files for your compiler with CMake.
+    CMake (http://www.cmake.org/) is an extensible, open-source
+    system that manages the build process in an operating system
+    and in a compiler-independent manner. You can download a GUI
+    for your Windows OS and generate project files for example
+    your Visual Studio.
+    
+    Note: The sniffer does not support 64-bit compilation.
 
+    Source code (main fork) is available at: http://github.com/Anubisss/SzimatSzatyor
+    Source code (this fork) is available at: https://github.com/ChipLeo/SzimatSzatyor
 
+LICENSE:
+    GNU GPLv3
+    COPYING file contains the license which should be distributed
+    with the software or visit http://www.gnu.org/licenses/gpl-3.0.html
 
-COMPILATION:    If you want to compile SzimatSzatyor from the source code
-             you have to generate the project files for your compiler with CMake.
-                CMake (http://www.cmake.org/) is an extensible, open-source
-             system that manages the build process in an operating system
-             and in a compiler-independent manner. You can download a GUI
-             for your Windows OS and generate project files for example
-             your Visual Studio.
-                Note that you must compile the project with a 32-bit compiler
-             because the sniffer won't work if you compile it in 64-bit mode.
-
-
-
-Source code is available at: http://github.com/Anubisss/SzimatSzatyor
-
-Compiled binaries: http://github.com/Anubisss/SzimatSzatyor/wiki/Download
-
-License: GNU GPLv3
-         COPYING file contains the license which should be distributed
-         with the software or visit http://www.gnu.org/licenses/gpl-3.0.html
-
+    
 Screenshots: http://github.com/Anubisss/SzimatSzatyor/wiki/Screenshots
-
 
 
 SzimatSzatyor is free software: you can redistribute it and/or modify

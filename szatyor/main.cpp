@@ -15,11 +15,15 @@
 #include <Windows.h>
 #include <TlHelp32.h>
 #include <Aclapi.h>
-#include <cstdio>
 #include <list>
-#include "..\szimat\Shared.h"
-// default name of the process which will be hooked
-const char* lookingProcessName = "Wow.exe";
+#include "Util.h"
+#include <map>
+#include <string>
+
+// names of the processes which will be automatically hooked if they exist
+//"" is for setting the exe as a param
+std::string lookingProcessName[] = { "", "Wow.exe", "Wow_Patched.exe", "WowT.exe", "WowT_Patched.exe" };
+
 // this DLL will be injected
 const char injectDLLName[] = "szimat.dll";
 // this module contains function loadDLLFunctionName
@@ -27,11 +31,11 @@ const char loadedModuleName[] = "kernel32.dll";
 // basically this function loads/injects the DLL
 const char loadDLLFunctionName[] = "LoadLibraryA";
 // list container which stores PIDs
-typedef std::list<DWORD /* PID */> PIDList;
-// typedef for constant iterator of PIDList
-typedef PIDList::const_iterator PIDList_ConstItr;
+typedef std::map<DWORD, std::string> PIDMap;
+
+DWORD SelectProcess();
 // gets PIDs of the processes which found by name
-PIDList GetProcessIDsByName(const char* /* processName */);
+void GetProcessIDsByName(PIDMap& /*pids*/, const std::string& /* processName */);
 // returns true if the specific process already injeted with the specific DLL
 bool IsProcessAlreadyInjected(DWORD /* PID */, const char* /* moduleName */);
 // opens client's process targeted by PID
@@ -42,11 +46,13 @@ int main(int argc, char* argv[])
 {
     // nice title :)
     SetConsoleTitle("SzimatSzatyor, WoW injector sniffer");
+
     // some info
-    printf("Welcome to SzimatSzatyor, a WoW injector sniffer.\n");
-    printf("SzimatSzatyor is distributed under the GNU GPLv3 license.\n");
+    printf("Welcome to SzimatSzatyor2, a WoW injector sniffer.\n");
+    printf("SzimatSzatyor2 is distributed under the GNU GPLv3 license.\n");
     printf("Source code is available at: ");
-    printf("http://github.com/Anubisss/SzimatSzatyor\n\n");
+    printf("https://github.com/ChipLeo/SzimatSzatyor\n\n");
+
     if (argc > 2)
     {
         printf("ERROR: Invalid parameters. ");
@@ -56,94 +62,14 @@ int main(int argc, char* argv[])
     }
     // custom process' name
     else if (argc == 2)
-        lookingProcessName = argv[1];
+        lookingProcessName[0] = std::string(argv[1]);
+
     // this process will be injected
-    DWORD processID = 0;
-    // tries to get the PIDs
-    PIDList& pids = GetProcessIDsByName(lookingProcessName);
-    if (pids.empty())
-    {
-        printf("'%s' process NOT found.\n", lookingProcessName);
-        printf("Note: be sure the process which you looking for ");
-        printf("is must be a 32 bit process.\n\n");
-        system("pause");
+    DWORD processID = SelectProcess();
+
+    if (!processID)
         return 0;
-    }
-    // just one PID found
-    else if (pids.size() == 1)
-    {
-        processID = pids.front();
-        printf("'%s' process found, PID: %u\n", lookingProcessName, processID);
-        // checks this process is already injected or not
-        if (IsProcessAlreadyInjected(processID, injectDLLName))
-        {
-            printf("Process is already injected.\n\n");
-            system("pause");
-            return 0;
-        }
-    }
-    // size > 1, multiple possible processes
-    else
-    {
-        printf("Multiple '%s' processes found.\n", lookingProcessName);
-        printf("Please select one which will be injected.\n\n");
-        // stores the PIDs which are already injected
-        // so these are "invalid"
-        PIDList injectedPIDs;
-        unsigned int idx = 1;
-        for (PIDList_ConstItr itr = pids.begin(); itr != pids.end(); ++itr)
-        {
-            DWORD pid = *itr;
-            printf("[%u] PID: %u\n", idx++, pid);
-            if (IsProcessAlreadyInjected(pid, injectDLLName))
-            {
-                printf("Already injected!\n\n");
-                injectedPIDs.push_back(pid);
-            }
-        }
-        // same size: there is no non-injected PID
-        if (pids.size() == injectedPIDs.size())
-        {
-            printf("All the processes are already injected.\n\n");
-            system("pause");
-            return 0;
-        }
-        unsigned int selectedIndex = 0;
-        // loops until has correct PID
-        while (1)
-        {
-            processID = 0;
-            selectedIndex = 0;
-            printf("Please select a process, use [index]: ");
-            scanf("%u", &selectedIndex);
-            // bigger than max index
-            if (selectedIndex > idx - 1)
-            {
-                printf("Your index is too big, max index is %u.\n", idx - 1);
-                continue;
-            }
-            // 0 or non int used
-            else if (selectedIndex == 0)
-            {
-                printf("Your index is invalid, 1-%u should be used.\n", idx - 1);
-                continue;
-            }
-            // gets PID via index
-            PIDList_ConstItr itr = pids.begin();
-            std::advance(itr, selectedIndex - 1);
-            processID = *itr;
-            // if already injected
-            if (std::find(injectedPIDs.begin(), injectedPIDs.end(), processID) != injectedPIDs.end())
-            {
-                printf("This process is already injected. ");
-                printf("Please choose a different one.\n");
-                continue;
-            }
-            // looks like all good
-            break;
-        }
-        printf("\n");
-    }
+
     // stores where the injector is, so location/path of the current process
     char injectorPath[MAX_PATH] = { 0 };
     // gets where the injector is
@@ -173,17 +99,15 @@ int main(int argc, char* argv[])
     //system("pause");
     return 0;
 }
-PIDList GetProcessIDsByName(const char* processName)
+
+void GetProcessIDsByName(PIDMap& pids, const std::string& processName)
 {
-    // list of correct PIDs
-    PIDList pids;
     // gets a snapshot from 32 bit processes
     HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnapshot == INVALID_HANDLE_VALUE)
     {
         printf("ERROR: Can't get snapshot from 32 bit processes, ");
         printf("ErrorCode: %u\n", GetLastError());
-        return pids;
     }
     // a 32 bit process entry from a snapshot
     PROCESSENTRY32 processEntry;
@@ -196,14 +120,13 @@ PIDList GetProcessIDsByName(const char* processName)
         do
         {
             // process found
-            if (!strcmp(processEntry.szExeFile, lookingProcessName))
-                pids.push_back(processEntry.th32ProcessID);
+            if (!strcmp(processEntry.szExeFile, processName.c_str()))
+                pids[processEntry.th32ProcessID] = std::string(processEntry.szExeFile);
         }
         // loops over the snapshot
         while (Process32Next(hSnapshot, &processEntry));
     }
     CloseHandle(hSnapshot);
-    return pids;
 }
 bool IsProcessAlreadyInjected(DWORD PID, const char* moduleName)
 {
@@ -327,6 +250,112 @@ HANDLE OpenClientProcess(DWORD processID)
     }
     return hProcess;
 }
+
+DWORD SelectProcess()
+{
+    PIDMap pids;
+    int len = sizeof(lookingProcessName) / sizeof(std::string);
+    for (int i = 0; i < len; ++i)
+        GetProcessIDsByName(pids, lookingProcessName[i]);
+
+    if (pids.empty())
+    {
+        printf("process NOT found.\n");
+        system("pause");
+        return 0;
+    }
+    // just one PID found
+    else if (pids.size() == 1)
+    {
+        // we already know it's not empty so we can do this safely
+        DWORD processID = pids.begin()->first;
+        std::string processName = pids.begin()->second;
+
+        printf("%s process found, PID: %u\n", processName.c_str(), processID);
+        // checks this process is already injected or not
+        if (IsProcessAlreadyInjected(processID, injectDLLName))
+        {
+            printf("Process is already injected.\n\n");
+            system("pause");
+            return 0;
+        }
+        return processID;
+    }
+    // size > 1, multiple possible processes
+    else
+    {
+        printf("Multiple processes found.\n");
+        printf("Please select one which will be injected.\n\n");
+
+        // stores the PIDs which are already injected
+        // so these are "invalid"
+        PIDMap injectedPIDs;
+
+        unsigned int idx = 1;
+        for (PIDMap::const_iterator itr = pids.begin(); itr != pids.end(); ++itr)
+        {
+            DWORD pid = itr->first;
+            printf("[%u] PID: %u\n", idx++, pid);
+            if (IsProcessAlreadyInjected(pid, injectDLLName))
+            {
+                printf("Already injected!\n\n");
+                injectedPIDs[pid] = itr->second;
+            }
+        }
+
+        // same size: there is no non-injected PID
+        if (pids.size() == injectedPIDs.size())
+        {
+            printf("All the processes are already injected.\n\n");
+            system("pause");
+            return 0;
+        }
+
+        unsigned int selectedIndex = 0;
+        // loops until has correct PID
+        while (1)
+        {
+            DWORD processID = 0;
+            selectedIndex = 0;
+
+            printf("Please select a process, use [index]: ");
+            scanf("%u", &selectedIndex);
+            // bigger than max index
+            if (selectedIndex > idx - 1)
+            {
+                printf("Your index is too big, max index is %u.\n", idx - 1);
+                continue;
+            }
+            // 0 or non int used
+            else if (selectedIndex == 0)
+            {
+                printf("Your index is invalid, 1-%u should be used.\n", idx - 1);
+                continue;
+            }
+
+            // gets PID via index
+            PIDMap::const_iterator itr = pids.begin();
+            std::advance(itr, selectedIndex - 1);
+            processID = itr->first;
+
+            // if already injected
+            if (injectedPIDs.find(processID) != injectedPIDs.end())
+            {
+                printf("This process is already injected. ");
+                printf("Please choose a different one.\n");
+                continue;
+            }
+
+            printf("\n");
+
+            // looks like all good
+            return processID;
+        }
+    }
+
+    return 0;
+}
+
 bool InjectDLL(DWORD processID, const char* dllLocation)
 {
     // gets a module handler which loaded by the process which
@@ -334,26 +363,30 @@ bool InjectDLL(DWORD processID, const char* dllLocation)
     HMODULE hModule = GetModuleHandle(loadedModuleName);
     if (!hModule)
     {
-        printf("ERROR: Can't get %s's handle, ");
-        printf("ErrorCode: %u\n", loadedModuleName, GetLastError());
+        printf("ERROR: Can't get %s's handle, ", loadedModuleName);
+        printf("ErrorCode: %u\n", GetLastError());
+        system("pause");
         return false;
     }
     // gets the address of an exported function which can load DLLs
     FARPROC loadLibraryAddress = GetProcAddress(hModule, loadDLLFunctionName);
     if (!loadLibraryAddress)
     {
-        printf("ERROR: Can't get function %s's address, ");
-        printf("ErrorCode: %u\n", loadDLLFunctionName, GetLastError());
+        printf("ERROR: Can't get function %s's address, ", loadDLLFunctionName);
+        printf("ErrorCode: %u\n", GetLastError());
+        system("pause");
         return false;
     }
     // opens the process which should be injected
     HANDLE hProcess = OpenClientProcess(processID);
     if (!hProcess)
     {
-        printf("Process [%u] '%s' open is failed.\n", processID, lookingProcessName);
+        printf("Process [%u] open is failed.\n", processID);
+        system("pause");
         return false;
     }
-    printf("\nProcess [%u] '%s' is opened.\n", processID, lookingProcessName);
+    printf("\nProcess [%u] is opened.\n", processID);
+
     // gets the build number
     WORD buildNumber = GetBuildNumberFromProcess(hProcess);
     // error occured
@@ -368,6 +401,7 @@ bool InjectDLL(DWORD processID, const char* dllLocation)
     if (!IsHookEntryExists(NULL, buildNumber))
     {
         printf("ERROR: This build number is not supported.\n");
+        system("pause");
         CloseHandle(hProcess);
         return false;
     }
@@ -377,6 +411,7 @@ bool InjectDLL(DWORD processID, const char* dllLocation)
     {
         printf("ERROR: Virtual memory allocation is failed, ");
         printf("ErrorCode: %u.\n", GetLastError());
+        system("pause");
         CloseHandle(hProcess);
         return false;
     }
@@ -386,6 +421,7 @@ bool InjectDLL(DWORD processID, const char* dllLocation)
     {
         printf("ERROR: Process memory writing is failed, ");
         printf("ErrorCode: %u\n", GetLastError());
+        system("pause");
         VirtualFreeEx(hProcess, allocatedMemoryAddress, 0, MEM_RELEASE);
         CloseHandle(hProcess);
         return false;
@@ -398,6 +434,7 @@ bool InjectDLL(DWORD processID, const char* dllLocation)
     {
         printf("ERROR: Remote thread creation is failed, ");
         printf("ErrorCode: %u\n", GetLastError());
+        system("pause");
         VirtualFreeEx(hProcess, allocatedMemoryAddress, 0, MEM_RELEASE);
         CloseHandle(hProcess);
         return false;

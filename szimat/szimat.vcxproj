@@ -53,11 +53,12 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;SZIMAT_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile />
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>$(SolutionDir)shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>Shlwapi.lib;Version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shlwapi.lib;Version.lib;$(OutDir)shared.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy $(SolutionDir)szimat\offsets.ini $(OutDir)
@@ -74,13 +75,14 @@ copy $(SolutionDir)README $(OutDir)</Command>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;SZIMAT_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile />
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>$(SolutionDir)shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>Shlwapi.lib;Version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shlwapi.lib;Version.lib;$(OutDir)shared.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy $(SolutionDir)szimat\offsets.ini $(OutDir)
@@ -88,13 +90,18 @@ copy $(SolutionDir)README $(OutDir)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="szimat.cpp" />
+    <ClCompile Include="CliRunnable.cpp" />
+    <ClCompile Include="CommandMgr.cpp" />
+    <ClCompile Include="Sniffer.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CliRunnable.h" />
+    <ClInclude Include="CommandMgr.h" />
+    <ClInclude Include="CommandHandler.h" />
     <ClInclude Include="ConsoleManager.h" />
     <ClInclude Include="HookManager.h" />
-    <ClInclude Include="Shared.h" />
-    <ClInclude Include="szimat.h" />
+    <ClInclude Include="Sniffer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="offsets.ini" />
