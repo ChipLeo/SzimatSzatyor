@@ -85,8 +85,8 @@ copy $(SolutionDir)README $(OutDir)</Command>
       <AdditionalDependencies>Shlwapi.lib;Version.lib;$(OutDir)shared.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)szimat\offsets.ini $(OutDir)
-copy $(SolutionDir)README $(OutDir)</Command>
+      <Command>copy "$(SolutionDir)szimat\offsets.ini" "$(OutDir)"
+copy "$(SolutionDir)README" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
