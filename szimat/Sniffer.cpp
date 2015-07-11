@@ -29,8 +29,8 @@ void Sniffer::DumpPacket(PacketInfo const& info)
         ? *(DWORD*)info.dataStore->buffer
         : *(WORD*)info.dataStore->buffer;
 
-    if (!sOpcodeMgr->ShouldShowOpcode(packetOpcode, info.packetType))
-        return;
+    //if (!sOpcodeMgr->ShouldShowOpcode(packetOpcode, info.packetType))
+    //    return;
 
     dumpMutex.lock();
     // gets the time
@@ -96,7 +96,8 @@ void Sniffer::DumpPacket(PacketInfo const& info)
 
     fwrite(packetData, packetDataSize,          1, fileDump);  // data
 
-    printf("%s Size: %u\n", sOpcodeMgr->GetOpcodeNameForLogging(packetOpcode, info.packetType != CMSG).c_str(), packetDataSize);
+	if (sOpcodeMgr->ShouldShowOpcode(packetOpcode, info.packetType))
+		printf("%s Size: %u\n", sOpcodeMgr->GetOpcodeNameForLogging(packetOpcode, info.packetType != CMSG).c_str(), packetDataSize);
 
     fflush(fileDump);
 

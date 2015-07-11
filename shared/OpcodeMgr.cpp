@@ -11,7 +11,7 @@ void OpcodeMgr::Initialize()
     serverOpcodeTable = new OpcodeTable();
     clientOpcodeTable = new OpcodeTable();
 
-    m_showKnownOpcodes = true;
+    m_showKnownOpcodes = false;
     m_showClientOpcodes = true;
     m_showServerOpcodes = true;
 }

@@ -251,15 +251,15 @@ bool CommandMgr::HandleExclusiveCommand(char* args[])
 
 bool CommandMgr::HandleHelpCommand(char* args[])
 {
-    printf("|-----------------------------------------------------------------------------------------------------|\n");
-    printf("| COMMAND     | PARAMS                               | DESCRIPTION                                    |\n");
-    printf("|-----------------------------------------------------------------------------------------------------|\n");
-    printf("| quit        |                                      | Unhook the sniffer                             |\n");
-    printf("| block       | #Opcode true/false                   | Block #opcode type (true=server, false=client) |\n");
-    printf("| unblock     | #Opcode/all true/false               | Unblock #opcode (or all) of type ^             |\n");
-    printf("| toggle      | known/server/client                  | Toggle showing/sniffing opcodes of type        |\n");
-    printf("| exclusive   | Add/del/clear #opcode/all true/false | Add/remove/clear exclusive opcodes of type     |\n");
-    printf("| help        |                                      | Show commands                                  |\n");
-    printf("|-----------------------------------------------------------------------------------------------------|\n");
+    printf("|------------------------------------------------------------------------------|\n");
+    printf("| COMMAND | PARAMS                              | DESCRIPTION                  |\n");
+    printf("|------------------------------------------------------------------------------|\n");
+    printf("|quit     |                                     | Unhook the sniffer           |\n");
+    printf("|block    |#Opcode true/false                   | Block #opcode type (1=S, 0=C)|\n");
+    printf("|unblock  |#Opcode/all true/false               | Unblock #opcode (or all)     |\n");
+    printf("|toggle   |known/server/client                  | Toggle show/sniff opcodes    |\n");
+    printf("|exclusive|Add/del/clear #opcode/all true/false | Add/rem/clear exclusive opc. |\n");
+    printf("|help     |                                     | Show commands                |\n");
+    printf("|------------------------------------------------------------------------------|\n");
     return true;
 }
