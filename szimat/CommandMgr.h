@@ -17,6 +17,8 @@ class CommandMgr
         bool HandleCommand(const std::string& command, char* args[]);
         unsigned int GetOpcodeFromParam(char* param);
 
+        int IsServerIdentifier(char* param);
+
     private:
         bool HandleQuitCommand(char* args[]);
         bool HandleBlockCommand(char* args[]);

@@ -35,6 +35,13 @@ inline bool char_isspace(char c)
     return std::isspace(static_cast<unsigned char>(c)) != 0;
 }
 
+inline void ctolower(char* s)
+{
+    int len = strlen(s);
+    for (int i = 0; i < len; ++i)
+        s[i] = tolower(s[i]);
+}
+
 bool WStrToUtf8(std::wstring const& wstr, std::string& utf8str);
 bool consoleToUtf8(const std::string& conStr, std::string& utf8str);
 
